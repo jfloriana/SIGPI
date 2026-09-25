@@ -86,6 +86,10 @@ interface PropsConfirmacion {
   error?: string | null;
   procesando?: boolean;
   alConfirmar: (motivo: string) => void;
+  /** "md" cuando el contenido incluye una lista (p. ej., productos a despachar). */
+  ancho?: "sm" | "md";
+  /** Contenido adicional sobre el motivo (resumen de lo que se va a hacer). */
+  children?: ReactNode;
 }
 
 /** Confirmación antes de acciones sensibles (despachar, anular, desactivar). */
@@ -101,6 +105,8 @@ export function DialogoConfirmacion({
   error,
   procesando,
   alConfirmar,
+  ancho = "sm",
+  children,
 }: PropsConfirmacion) {
   const [motivo, setMotivo] = useState("");
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
@@ -129,7 +135,7 @@ export function DialogoConfirmacion({
       alCerrar={alCerrar}
       titulo={titulo}
       descripcion={descripcion}
-      ancho="sm"
+      ancho={ancho}
       pie={
         <>
           <button type="button" onClick={alCerrar} className="btn-secundario">
@@ -143,6 +149,7 @@ export function DialogoConfirmacion({
       }
     >
       <form id={idForm} onSubmit={enviar} noValidate className="space-y-3">
+        {children}
         {motivoMinimo !== undefined && (
           <div>
             <label htmlFor={idMotivo} className="campo-etiqueta">

@@ -22,14 +22,17 @@ interface DefEtiqueta {
   texto: ReactNode;
   /** Rótulos de estante: en celular se omiten para no saturar la escena. */
   soloAncho?: boolean;
+  /** Desplazamiento en píxeles (abanico) para que las etiquetas vecinas no se tapen. */
+  desfase?: [number, number];
+  desfaseMovil?: [number, number];
 }
 
 const ESTILO_TONO: Record<Tono, string> = {
-  codigo: "rounded-md bg-marino px-1.5 py-0.5 text-xs font-bold tracking-wide text-white",
-  alerta: "rounded-lg border border-ambar-100 bg-ambar-50 px-2.5 py-1.5 text-xs font-semibold text-ambar-800 shadow-md shadow-marino-900/10",
-  info: "rounded-lg border border-marino-100 bg-white px-2.5 py-1.5 text-xs font-medium text-marino-900 shadow-md shadow-marino-900/10",
-  pedido: "rounded-lg bg-teal-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-marino-900/15",
-  anulado: "rounded-lg border border-coral-100 bg-coral-50 px-2.5 py-1.5 text-xs font-semibold text-coral-800 shadow-md shadow-marino-900/10",
+  codigo: "rounded-md bg-marino px-1.5 py-0.5 text-xs font-bold tracking-wide text-white lg:text-sm",
+  alerta: "rounded-lg border border-ambar-100 bg-ambar-50 px-2.5 py-1.5 text-xs font-semibold text-ambar-800 shadow-md lg:text-sm shadow-marino-900/10",
+  info: "rounded-lg border border-marino-100 bg-white px-2.5 py-1.5 text-xs font-medium text-marino-900 shadow-md lg:text-sm shadow-marino-900/10",
+  pedido: "rounded-lg bg-teal-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-md lg:text-sm shadow-marino-900/15",
+  anulado: "rounded-lg border border-coral-100 bg-coral-50 px-2.5 py-1.5 text-xs font-semibold text-coral-800 shadow-md lg:text-sm shadow-marino-900/10",
 };
 
 const ETIQUETAS: DefEtiqueta[] = [
@@ -47,9 +50,15 @@ const ETIQUETAS: DefEtiqueta[] = [
     texto: `${PRODUCTO_ALERTA.nombre} · stock ${PRODUCTO_ALERTA.stock} ≤ mínimo ${PRODUCTO_ALERTA.minimo}`,
   },
   { ancla: "pedido", estaciones: [0, 2], tono: "pedido", texto: `${PEDIDO_DEMO} · DESPACHADO` },
-  { ancla: "escritorio", estaciones: [1], tono: "info", texto: "REGISTRADO · a crédito, espera al gerente" },
-  { ancla: "aprobado", estaciones: [1], tono: "info", texto: "APROBADO por el gerente" },
-  { ancla: "anulado", estaciones: [1], tono: "anulado", texto: "ANULADO · con motivo" },
+  {
+    ancla: "escritorio",
+    estaciones: [1],
+    tono: "info",
+    texto: "REGISTRADO · a crédito, espera al gerente",
+    desfaseMovil: [-24, -8],
+  },
+  { ancla: "aprobado", estaciones: [1], tono: "info", texto: "APROBADO por el gerente", desfaseMovil: [-110, 20] },
+  { ancla: "anulado", estaciones: [1], tono: "anulado", texto: "ANULADO · con motivo", desfase: [70, 0], desfaseMovil: [40, 80] },
   { ancla: "salida", estaciones: [2], tono: "info", texto: "Una SALIDA en el kardex por cada línea" },
   {
     ancla: "recepcion",
@@ -57,7 +66,13 @@ const ETIQUETAS: DefEtiqueta[] = [
     tono: "info",
     texto: `OC sugerida: ${PRODUCTO_ALERTA.sugerida} unid. (2 × ${PRODUCTO_ALERTA.minimo} − ${PRODUCTO_ALERTA.stock})`,
   },
-  { ancla: "proveedor", estaciones: [3], tono: "info", texto: "Recepción · ENTRADA en el kardex" },
+  {
+    ancla: "proveedor",
+    estaciones: [3],
+    tono: "info",
+    texto: "Recepción · ENTRADA en el kardex",
+    desfaseMovil: [0, -58],
+  },
 ];
 
 const ESTACIONES = [
@@ -95,7 +110,13 @@ export default function LandingPage() {
           ? new Almacen({ contenedor, paleta: leerPaleta(), movimientoReducido: reducido, globo: globo.current })
           : null;
         almacen?.registrarEtiquetas(
-          ETIQUETAS.map((d, i) => ({ el: etiquetas.current[i]!, ancla: d.ancla, estaciones: d.estaciones })),
+          ETIQUETAS.map((d, i) => ({
+            el: etiquetas.current[i]!,
+            ancla: d.ancla,
+            estaciones: d.estaciones,
+            desfase: d.desfase,
+            desfaseMovil: d.desfaseMovil,
+          })),
         );
 
         // El scroll recorre las tres estaciones: cada sección aporta un tramo de 0 a 1.
@@ -222,7 +243,7 @@ export default function LandingPage() {
                 <br />
                 al camión del andén.
               </h1>
-              <p data-entrada className="mt-4 max-w-md text-base leading-relaxed text-slate-700 sm:mt-5 sm:text-lg">
+              <p data-entrada className="mt-4 max-w-md text-base lg:max-w-[24rem] leading-relaxed text-slate-700 sm:mt-5 sm:text-lg">
                 SIGPI gestiona pedidos, inventario y compras de DistriNorte S.A.C., distribuidora de abarrotes de
                 Trujillo. Cada regla se aplica en el servidor y queda en la bitácora.
               </p>
@@ -360,7 +381,7 @@ function Estacion({
 }) {
   return (
     <section id={id} ref={ref} aria-labelledby={`${id}-titulo`} className="relative min-h-[170dvh] px-4 pb-[55dvh] sm:px-8 lg:px-12">
-      <div className="pointer-events-auto sticky top-[46dvh] max-w-md rounded-xl border border-marino-100 bg-white/95 p-4 text-sm leading-relaxed sm:text-[0.95rem] text-slate-700 shadow-lg shadow-marino-900/10 sm:p-6 md:top-[16dvh] lg:max-w-[28rem]">
+      <div className="pointer-events-auto sticky top-[46dvh] max-w-md rounded-xl border border-marino-100 bg-white p-4 text-sm leading-relaxed sm:text-[0.95rem] text-slate-700 shadow-lg shadow-marino-900/10 sm:p-6 md:top-[16dvh] lg:max-w-[28rem]">
         <h2 id={`${id}-titulo`} className="text-xl leading-tight font-bold tracking-tight text-balance text-marino-900 sm:text-2xl">
           {titulo}
         </h2>
@@ -418,7 +439,7 @@ function Cierre({ destino }: { destino: { to: string; texto: string } }) {
           <div className="overflow-hidden rounded-xl border border-marino-100">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Usuarios de demostración</caption>
-              <thead className="bg-marino-50 text-marino-900">
+              <thead className="hidden bg-marino-50 text-marino-900 sm:table-header-group">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-semibold">
                     Usuario

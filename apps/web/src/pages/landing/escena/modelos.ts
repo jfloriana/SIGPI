@@ -18,11 +18,21 @@ export function agregar(piezas: Piezas, token: Token, ...geometrias: THREE.Buffe
 }
 
 /** Estante de tres niveles: parantes, bandejas y travesaños (en coordenadas de mundo). */
-export function estante(piezas: Piezas, cx: number, cz: number, ancho: number, fondo: number, alto: number, niveles: number[]) {
+/** `parante` permite teñir los parantes (el estante en alerta los lleva en ámbar). */
+export function estante(
+  piezas: Piezas,
+  cx: number,
+  cz: number,
+  ancho: number,
+  fondo: number,
+  alto: number,
+  niveles: number[],
+  parante: Token = "marino",
+) {
   const p = 0.09;
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
-      agregar(piezas, "marino", caja(p, alto, p, cx + sx * (ancho / 2 - p / 2), alto / 2, cz + sz * (fondo / 2 - p / 2)));
+      agregar(piezas, parante, caja(p, alto, p, cx + sx * (ancho / 2 - p / 2), alto / 2, cz + sz * (fondo / 2 - p / 2)));
     }
     // Arriostre lateral en X, típico de un rack de carga.
     const brazo = caja(p * 0.6, Math.hypot(fondo, alto * 0.45), p * 0.6, 0, 0, 0);
@@ -34,7 +44,7 @@ export function estante(piezas: Piezas, cx: number, cz: number, ancho: number, f
     agregar(piezas, "marino-600", caja(ancho, 0.07, fondo, cx, y, cz));
     agregar(piezas, "marino", caja(ancho, 0.12, 0.06, cx, y - 0.02, cz + fondo / 2));
   }
-  agregar(piezas, "marino", caja(ancho, 0.1, 0.07, cx, alto - 0.05, cz + fondo / 2), caja(ancho, 0.1, 0.07, cx, alto - 0.05, cz - fondo / 2));
+  agregar(piezas, parante, caja(ancho, 0.1, 0.07, cx, alto - 0.05, cz + fondo / 2), caja(ancho, 0.1, 0.07, cx, alto - 0.05, cz - fondo / 2));
 }
 
 /** Parihuela (pallet) de madera estilizada. */

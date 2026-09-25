@@ -25,7 +25,7 @@ interface Cuadro {
 }
 
 const CUADROS_ANCHO: Cuadro[] = [
-  { objetivo: [3, 0.4, -0.5], ancho: 50, alto: 26, dx: 0.2, dy: -0.02 },
+  { objetivo: [3, 0.4, -0.5], ancho: 50, alto: 26, dx: 0.22, dy: -0.02 },
   { objetivo: [-7, 0.8, 4.6], ancho: 25, alto: 14, dx: 0.17, dy: 0 },
   { objetivo: [12.2, 0.8, 3], ancho: 26, alto: 15, dx: 0.17, dy: 0 },
   { objetivo: [7.5, 1, -4.6], ancho: 28, alto: 16, dx: 0.17, dy: 0 },
@@ -46,6 +46,9 @@ export interface Etiqueta {
   ancla: string;
   /** Estaciones (0 = portada, 1–3) en las que la etiqueta se muestra. */
   estaciones: number[];
+  /** Desplazamiento en píxeles desde el ancla (ancho ≥ 768 px y celular). */
+  desfase?: [number, number];
+  desfaseMovil?: [number, number];
 }
 
 interface Opciones {
@@ -69,6 +72,8 @@ export class Almacen {
   private readonly camara = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
   private readonly materiales = new Map<Token, THREE.MeshLambertMaterial>();
   private readonly materialAlerta: THREE.MeshLambertMaterial;
+  /** Las otras seis alertas: ámbar, pero con menos brillo para que ACE lidere. */
+  private readonly materialAlertaSecundaria: THREE.MeshLambertMaterial;
   private readonly marcaAlerta: THREE.Mesh;
   private readonly zonasEstante: THREE.Mesh[] = [];
   private readonly resaltado: THREE.Mesh;
@@ -121,6 +126,12 @@ export class Almacen {
       emissiveIntensity: 0.35,
     });
 
+    this.materialAlertaSecundaria = new THREE.MeshLambertMaterial({
+      color: paleta.ambar,
+      emissive: new THREE.Color(paleta.ambar),
+      emissiveIntensity: 0.05,
+    });
+
     this.iluminar();
     this.construirEdificio();
     this.construirEstantes();
@@ -130,7 +141,7 @@ export class Almacen {
     const aceites = CATEGORIAS.find((c) => c.codigo === "ACE")!;
     this.marcaAlerta = new THREE.Mesh(
       new THREE.PlaneGeometry(ESTANTE.ancho + 0.8, ESTANTE.fondo + 0.8),
-      new THREE.MeshBasicMaterial({ color: paleta.ambar, transparent: true, opacity: 0.35, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: paleta.ambar, transparent: true, opacity: 0.7, depthWrite: false }),
     );
     this.marcaAlerta.rotation.x = -Math.PI / 2;
     this.marcaAlerta.position.set(aceites.x, 0.012, aceites.z);
@@ -289,13 +300,13 @@ export class Almacen {
   private construirEstantes() {
     const piezas: Piezas = new Map();
     const normales: { x: number; y: number; z: number; s: [number, number, number]; token: Token }[] = [];
-    const alertas: { x: number; y: number; z: number; s: [number, number, number] }[] = [];
+    const alertas: { x: number; y: number; z: number; s: [number, number, number]; protagonista: boolean }[] = [];
 
     CATEGORIAS.forEach((c: Categoria, i) => {
-      estante(piezas, c.x, c.z, ESTANTE.ancho, ESTANTE.fondo, ESTANTE.alto, ESTANTE.niveles);
+      estante(piezas, c.x, c.z, ESTANTE.ancho, ESTANTE.fondo, ESTANTE.alto, ESTANTE.niveles, c.codigo === "ACE" ? "ambar" : "marino");
       for (const p of ubicarProductos(c)) {
         const s = TAMANO_CAJA[p.unidad];
-        if (p.alerta) alertas.push({ x: p.x, y: p.y, z: p.z, s });
+        if (p.alerta) alertas.push({ x: p.x, y: p.y, z: p.z, s, protagonista: c.codigo === "ACE" });
         else normales.push({ x: p.x, y: p.y, z: p.z, s, token: p.unidad === "CAJA" ? "marino-500" : p.unidad === "SACO" ? "marino-100" : "marino-200" });
       }
       // Volumen invisible para detectar el puntero sobre el estante.
@@ -325,13 +336,20 @@ export class Almacen {
     cajas.receiveShadow = true;
     this.escena.add(cajas);
 
-    const enAlerta = new THREE.InstancedMesh(cubo.clone(), this.materialAlerta, alertas.length);
-    alertas.forEach((n, i) => {
-      m.makeScale(...n.s).setPosition(n.x, n.y, n.z);
-      enAlerta.setMatrixAt(i, m);
-    });
-    enAlerta.castShadow = true;
-    this.escena.add(enAlerta);
+    for (const protagonista of [true, false]) {
+      const grupo = alertas.filter((a) => a.protagonista === protagonista);
+      const malla = new THREE.InstancedMesh(
+        cubo.clone(),
+        protagonista ? this.materialAlerta : this.materialAlertaSecundaria,
+        grupo.length,
+      );
+      grupo.forEach((n, i) => {
+        m.makeScale(...n.s).setPosition(n.x, n.y, n.z);
+        malla.setMatrixAt(i, m);
+      });
+      malla.castShadow = true;
+      this.escena.add(malla);
+    }
   }
 
   private construirZonas() {
@@ -395,7 +413,7 @@ export class Almacen {
       case "anulado":
         return destino.set(ZONAS.anulado.x, 1.35, ZONAS.anulado.z);
       case "salida":
-        return destino.set(RUTA_DESPACHO[0][0], 1.2, RUTA_DESPACHO[0][1]);
+        return destino.set(RUTA_DESPACHO[1][0] + 1.2, 1.2, RUTA_DESPACHO[1][1] + 0.85);
       case "recepcion":
         return destino.set(ZONAS.palletRecepcion.x, 1.6, ZONAS.palletRecepcion.z);
       case "proveedor":
@@ -450,8 +468,8 @@ export class Almacen {
     }
     // Pulso ámbar de los productos en alerta.
     const pulso = 0.5 + 0.5 * Math.sin(t * Math.PI * 1.25);
-    this.materialAlerta.emissiveIntensity = 0.18 + 0.42 * pulso;
-    (this.marcaAlerta.material as THREE.MeshBasicMaterial).opacity = 0.18 + 0.32 * pulso;
+    this.materialAlerta.emissiveIntensity = 0.3 + 0.45 * pulso;
+    (this.marcaAlerta.material as THREE.MeshBasicMaterial).opacity = 0.5 + 0.35 * pulso;
 
     // Ciclo de 10 s: lleva el pedido al camión, lo carga y vuelve en reversa.
     const fase = (t % 10) / 10;
@@ -538,8 +556,9 @@ export class Almacen {
         this.anchos.set(et.el, mitad);
       }
       // Las etiquetas se mantienen dentro del lienzo aunque su ancla quede cerca del borde.
-      const x = THREE.MathUtils.clamp(((v.x + 1) / 2) * this.ancho, mitad / 2 + 8, Math.max(mitad / 2 + 8, this.ancho - mitad / 2 - 8));
-      const y = ((1 - v.y) / 2) * this.alto;
+      const [ox, oy] = (this.ancho < 768 ? (et.desfaseMovil ?? et.desfase) : et.desfase) ?? [0, 0];
+      const x = THREE.MathUtils.clamp(((v.x + 1) / 2) * this.ancho + ox, mitad / 2 + 8, Math.max(mitad / 2 + 8, this.ancho - mitad / 2 - 8));
+      const y = ((1 - v.y) / 2) * this.alto + oy;
       const fuera = x < -40 || x > this.ancho + 40 || y < -40 || y > this.alto + 40;
       et.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
       et.el.style.opacity = fuera ? "0" : opacidad.toFixed(3);

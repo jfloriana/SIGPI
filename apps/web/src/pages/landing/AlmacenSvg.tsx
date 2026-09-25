@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CATEGORIAS, ESTANTE, PISO, TAMANO_CAJA, ZONAS, ubicarProductos } from "./datos";
+import { CATEGORIAS, ESTANTE, PEDIDO_DEMO, PISO, PRODUCTO_ALERTA, TAMANO_CAJA, ZONAS, ubicarProductos } from "./datos";
 import { leerPaleta, type Token } from "./paleta";
 
 /**
@@ -12,6 +12,8 @@ interface Prisma {
   s: [number, number, number];
   /** Colores de las caras: superior, frontal (+z) y lateral (+x). */
   caras: [Token, Token, Token];
+  /** Profundidad común de un objeto compuesto (camión, montacargas): sus piezas se pintan en el orden en que se agregan. */
+  grupo?: number;
 }
 
 const COS = Math.cos(Math.PI / 6);
@@ -32,17 +34,53 @@ function prismas(): Prisma[] {
   lista.push({ c: [escritorio.x, 0.5, escritorio.z], s: [2.6, 1, 0.9], caras: ["blanco", "marino-600", "marino"] });
   lista.push({ c: [ZONAS.aprobado.x, 0.45, ZONAS.aprobado.z], s: [1, 0.8, 0.9], caras: ["marino-100", "marino-200", "marino-500"] });
   lista.push({ c: [ZONAS.anulado.x, 0.45, ZONAS.anulado.z], s: [1, 0.8, 0.9], caras: ["coral-100", "coral", "coral-700"] });
-  lista.push({ c: [ZONAS.palletRecepcion.x, 0.6, ZONAS.palletRecepcion.z], s: [1, 0.8, 0.9], caras: ["ambar-100", "ambar-100", "ambar"] });
-  lista.push({ c: [11.2, 0.6, 4.3], s: [1, 0.8, 0.9], caras: ["teal-100", "teal-100", "teal"] });
-  for (const camion of [ZONAS.camionDespacho, ZONAS.camionProveedor]) {
-    lista.push({ c: [camion.x, 1.45, camion.z], s: [3.6, 1.9, 1.9], caras: ["blanco", "marino-100", "marino-200"] });
-    lista.push({ c: [camion.x + 2.4, 1.1, camion.z], s: [1.2, 1.3, 1.8], caras: ["marino-500", "marino", "marino-800"] });
+  lista.push({ c: [ZONAS.palletRecepcion.x, 0.6, ZONAS.palletRecepcion.z], s: [1, 0.8, 0.9], caras: ["ambar-100", "ambar-100", "ambar-100"] });
+  // Marca de piso ámbar bajo el estante en alerta (ACE).
+  const ace = CATEGORIAS.find((c) => c.codigo === "ACE")!;
+  base.push({ c: [ace.x, 0.02, ace.z], s: [ESTANTE.ancho + 0.8, 0.04, ESTANTE.fondo + 0.8], caras: ["ambar", "ambar", "ambar"] });
+
+  // Montacargas en el andén, con el pedido PED-000123 en las uñas (mirando hacia +x).
+  const m = { x: 10.2, z: 4.3 };
+  const g = m.x + m.z;
+  const pieza = (c: [number, number, number], s: [number, number, number], caras: [Token, Token, Token]) =>
+    lista.push({ c: [m.x + c[0], c[1], m.z + c[2]], s, caras, grupo: g });
+  pieza([-0.6, 0.55, 0], [0.5, 0.5, 0.86], ["teal-700", "teal-800", "teal-800"]);
+  pieza([-0.5, 1.25, -0.38], [0.07, 1.1, 0.07], ["marino-900", "marino-900", "marino-900"]);
+  pieza([0.3, 1.25, -0.38], [0.07, 1.1, 0.07], ["marino-900", "marino-900", "marino-900"]);
+  pieza([-0.15, 0.45, 0], [1.3, 0.5, 0.9], ["teal", "teal-700", "teal-800"]);
+  pieza([-0.2, 0.85, 0], [0.36, 0.3, 0.5], ["marino-900", "marino-900", "marino-900"]);
+  pieza([-0.5, 1.25, 0.38], [0.07, 1.1, 0.07], ["marino-900", "marino-900", "marino-900"]);
+  pieza([0.3, 1.25, 0.38], [0.07, 1.1, 0.07], ["marino-900", "marino-900", "marino-900"]);
+  pieza([-0.1, 1.84, 0], [0.95, 0.07, 0.9], ["teal-700", "teal-800", "teal-800"]);
+  pieza([0.25, 0.2, 0.47], [0.36, 0.36, 0.14], ["marino-900", "marino-900", "marino-900"]);
+  pieza([-0.6, 0.2, 0.47], [0.36, 0.36, 0.14], ["marino-900", "marino-900", "marino-900"]);
+  pieza([0.6, 0.95, -0.3], [0.1, 1.9, 0.1], ["marino", "marino", "marino-800"]);
+  pieza([0.6, 0.95, 0.3], [0.1, 1.9, 0.1], ["marino", "marino", "marino-800"]);
+  pieza([1.2, 0.18, 0], [1.1, 0.12, 1.0], ["marino-500", "marino-600", "marino-600"]);
+  pieza([1.2, 0.55, 0], [1.0, 0.62, 0.9], ["teal-100", "teal-100", "teal"]);
+  pieza([1.2, 1.02, 0], [0.5, 0.34, 0.46], ["teal-100", "teal-100", "teal"]);
+
+  // Camiones: furgón con franja, cabina con parabrisas y ruedas.
+  for (const [camion, franja] of [
+    [ZONAS.camionDespacho, "teal"],
+    [ZONAS.camionProveedor, "marino-500"],
+  ] as const) {
+    const gc = camion.x + camion.z;
+    const parte = (c: [number, number, number], s: [number, number, number], caras: [Token, Token, Token]) =>
+      lista.push({ c: [camion.x + c[0], c[1], camion.z + c[2]], s, caras, grupo: gc });
+    parte([0.6, 0.4, 0], [5.0, 0.2, 1.6], ["marino-900", "marino-900", "marino-900"]);
+    parte([0, 1.45, 0], [3.6, 1.9, 1.9], ["blanco", "marino-50", "marino-100"]);
+    parte([0, 0.9, 0.96], [3.6, 0.24, 0.02], [franja, franja, franja]);
+    parte([2.4, 1.1, 0], [1.2, 1.3, 1.8], ["marino-500", "marino", "marino-800"]);
+    parte([2.72, 1.5, 0.02], [0.5, 0.42, 1.8], ["teal-100", "teal-100", "teal-100"]);
+    for (const x of [-1.1, 0.2, 2.4]) parte([x, 0.38, 0.95], [0.76, 0.76, 0.12], ["marino-900", "marino-900", "marino-900"]);
   }
   for (const c of CATEGORIAS) {
     const p = 0.12;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        lista.push({ c: [c.x + sx * (ESTANTE.ancho / 2 - p / 2), ESTANTE.alto / 2, c.z + sz * (ESTANTE.fondo / 2 - p / 2)], s: [p, ESTANTE.alto, p], caras: ["marino", "marino", "marino-800"] });
+        const tono: [Token, Token, Token] = c.codigo === "ACE" ? ["ambar", "ambar", "ambar-800"] : ["marino", "marino", "marino-800"];
+        lista.push({ c: [c.x + sx * (ESTANTE.ancho / 2 - p / 2), ESTANTE.alto / 2, c.z + sz * (ESTANTE.fondo / 2 - p / 2)], s: [p, ESTANTE.alto, p], caras: tono });
       }
     }
     for (const y of ESTANTE.niveles) {
@@ -58,12 +96,17 @@ function prismas(): Prisma[] {
     }
   }
   // Orden del pintor: primero lo más lejano (menor x + z), luego lo más bajo.
-  lista.sort((a, b) => a.c[0] + a.c[2] - (b.c[0] + b.c[2]) || a.c[1] - b.c[1]);
+  lista.sort((a, b) => {
+    const pa = a.grupo ?? a.c[0] + a.c[2];
+    const pb = b.grupo ?? b.c[0] + b.c[2];
+    if (pa !== pb) return pa - pb;
+    return a.grupo !== undefined && a.grupo === b.grupo ? 0 : a.c[1] - b.c[1];
+  });
   return [...base, ...lista];
 }
 
 export function AlmacenSvg({ className = "" }: { className?: string }) {
-  const { poligonos, rotulos, caja } = useMemo(() => {
+  const { poligonos, rotulos, avisos, caja } = useMemo(() => {
     const paleta = leerPaleta();
     const poligonos: { puntos: string; color: string }[] = [];
     let minX = Infinity;
@@ -93,8 +136,22 @@ export function AlmacenSvg({ className = "" }: { className?: string }) {
       const [x, y] = proyectar(c.x, ESTANTE.alto + 0.5, c.z);
       return { codigo: c.codigo, x, y, alerta: c.codigo === "ACE" };
     });
+    const ace = CATEGORIAS.find((c) => c.codigo === "ACE")!;
+    const [ax, ay] = proyectar(ace.x, ESTANTE.alto + 1.9, ace.z);
+    const [px, py] = proyectar(11.4, 2.6, 4.3);
+    const avisos = [
+      {
+        texto: `${PRODUCTO_ALERTA.nombre} · stock ${PRODUCTO_ALERTA.stock} ≤ mínimo ${PRODUCTO_ALERTA.minimo}`,
+        x: ax,
+        y: ay,
+        fondo: "fill-ambar-50 stroke-ambar-100",
+        letra: "fill-ambar-800",
+      },
+      { texto: `${PEDIDO_DEMO} · DESPACHADO`, x: px, y: py, fondo: "fill-teal-700", letra: "fill-white" },
+    ];
+    minY = Math.min(minY, ay - 1.8);
     const m = 0.6;
-    return { poligonos, rotulos, caja: `${minX - m} ${minY - m - 1} ${maxX - minX + 2 * m} ${maxY - minY + 2 * m + 1}` };
+    return { poligonos, rotulos, avisos, caja: `${minX - m} ${minY - m - 1} ${maxX - minX + 2 * m} ${maxY - minY + 2 * m + 1}` };
   }, []);
 
   return (
@@ -110,6 +167,17 @@ export function AlmacenSvg({ className = "" }: { className?: string }) {
           </text>
         </g>
       ))}
+      {avisos.map((a) => {
+        const ancho = a.texto.length * 0.36 + 1.1;
+        return (
+          <g key={a.texto} transform={`translate(${a.x.toFixed(2)} ${a.y.toFixed(2)})`}>
+            <rect x={-ancho / 2} y={-1.45} width={ancho} height={1.25} rx={0.25} strokeWidth={0.06} className={a.fondo} />
+            <text y={-0.6} textAnchor="middle" fontSize={0.66} fontWeight={600} className={a.letra}>
+              {a.texto}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
