@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../src/db.ts";
-import { sembrar } from "../prisma/seed.ts";
+import { sembrarBase } from "../prisma/seed.ts";
 import { app, conBitacora, tokenRapido, verificarKardex } from "./helpers.ts";
 
 type Rol = "ADMIN" | "GERENTE" | "VENDEDOR" | "ALMACENERO";
@@ -17,7 +17,7 @@ let proveedorId: number;
 const id: Record<string, number> = {};
 
 beforeEach(async () => {
-  await sembrar();
+  await sembrarBase();
   tokens = Object.fromEntries(
     await Promise.all((Object.keys(EMAIL) as Rol[]).map(async (r) => [r, await tokenRapido(EMAIL[r])])),
   ) as Record<Rol, string>;

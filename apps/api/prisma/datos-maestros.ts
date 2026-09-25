@@ -120,7 +120,7 @@ export const PRODUCTOS: ProductoSemilla[] = Object.entries(PRODUCTOS_POR_CATEGOR
 // ---------------------------------------------------------------------------------------------
 // Clientes: generados con un PRNG con semilla fija (mulberry32) → siempre los mismos 80.
 
-function mulberry32(semilla: number) {
+export function mulberry32(semilla: number) {
   let a = semilla >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;

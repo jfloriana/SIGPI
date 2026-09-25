@@ -34,6 +34,16 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(400).json({ error: { codigo: "JSON_INVALIDO", mensaje: "El cuerpo de la solicitud no es JSON válido" } });
     return;
   }
+  // Errores 4xx del lector de cuerpos (body-parser): p. ej., cuerpo demasiado grande → 413, no 500.
+  const e = err as { status?: number; type?: string; expose?: boolean };
+  if (e?.type === "entity.too.large") {
+    res.status(413).json({ error: { codigo: "CUERPO_DEMASIADO_GRANDE", mensaje: "El cuerpo de la solicitud es demasiado grande" } });
+    return;
+  }
+  if (typeof e?.status === "number" && e.status >= 400 && e.status < 500 && e.expose) {
+    res.status(e.status).json({ error: { codigo: "SOLICITUD_INVALIDA", mensaje: "La solicitud no es válida" } });
+    return;
+  }
   console.error(err);
   res.status(500).json({ error: { codigo: "ERROR_INTERNO", mensaje: "Ocurrió un error inesperado en el servidor" } });
 }

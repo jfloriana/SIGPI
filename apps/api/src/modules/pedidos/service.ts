@@ -39,6 +39,90 @@ const ESTADOS_ALMACENERO: EstadoPedido[] = ["APROBADO", "DESPACHADO", "ENTREGADO
 export const codigoPedido = (id: number) => `PED-${String(id).padStart(6, "0")}`;
 const dinero = (d: Prisma.Decimal) => d.toFixed(2);
 
+// ---------------------------------------------------------------------------------------------
+// Lógica pura compartida con la carga de datos históricos (prisma/seed): una sola fuente de verdad
+// para totales, aprobación automática y el contenido de la bitácora.
+
+type ProductoConPrecio = { id: number; codigo: string; precio: Prisma.Decimal };
+export type LineaCalculada = {
+  productoId: number;
+  codigo: string;
+  cantidad: number;
+  precioUnit: Prisma.Decimal;
+  subtotal: Prisma.Decimal;
+};
+export type MovimientoDespacho = { productoId: number; codigo: string; cantidad: number; stockResultante: number };
+
+/** Regla 4: subtotales y total con el precio vigente (Decimal, 2 decimales). */
+export function calcularLineas(lineas: { productoId: number; cantidad: number }[], porId: Map<number, ProductoConPrecio>) {
+  const calculadas: LineaCalculada[] = lineas.map((l) => {
+    const p = porId.get(l.productoId)!;
+    const subtotal = p.precio.mul(l.cantidad).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+    return { productoId: p.id, codigo: p.codigo, cantidad: l.cantidad, precioUnit: p.precio, subtotal };
+  });
+  const total = calculadas.reduce((a, l) => a.add(l.subtotal), new Prisma.Decimal(0)).toDecimalPlaces(2);
+  return { lineas: calculadas, total };
+}
+
+/** Regla 7: contado ≤ S/ 2 000 → aprobación automática. */
+export const seApruebaAutomaticamente = (condicionPago: string, total: Prisma.Decimal) =>
+  condicionPago === "CONTADO" && total.lte(LIMITE_APROBACION_AUTOMATICA);
+
+/** Contenido de la bitácora (acción, antes y después) de cada operación sobre un pedido. */
+export const bitacoraPedido = {
+  crear: (d: {
+    codigo: string;
+    cliente: { id: number; razonSocial: string };
+    condicionPago: string;
+    total: Prisma.Decimal;
+    lineas: LineaCalculada[];
+  }) => ({
+    accion: "CREAR" as const,
+    despues: {
+      codigo: d.codigo,
+      estado: "REGISTRADO",
+      cliente: { id: d.cliente.id, razonSocial: d.cliente.razonSocial },
+      condicionPago: d.condicionPago,
+      total: dinero(d.total),
+      lineas: d.lineas.map((l) => ({
+        productoId: l.productoId,
+        codigo: l.codigo,
+        cantidad: l.cantidad,
+        precioUnit: dinero(l.precioUnit),
+        subtotal: dinero(l.subtotal),
+      })),
+    },
+  }),
+  aprobacionAutomatica: () => ({
+    accion: "CAMBIO_ESTADO" as const,
+    antes: { estado: "REGISTRADO" },
+    despues: { estado: "APROBADO", aprobacion: "AUTOMATICA", regla: "Contado con total ≤ S/ 2 000" },
+  }),
+  aprobacion: (estadoPrevio: string) => ({
+    accion: "CAMBIO_ESTADO" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "APROBADO", aprobacion: "MANUAL" },
+  }),
+  despacho: (estadoPrevio: string, movimientos: MovimientoDespacho[]) => ({
+    accion: "CAMBIO_ESTADO" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "DESPACHADO", movimientos },
+  }),
+  entrega: (estadoPrevio: string) => ({
+    accion: "CAMBIO_ESTADO" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "ENTREGADO" },
+  }),
+  anulacion: (estadoPrevio: string, motivo: string) => ({
+    accion: "ANULAR" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "ANULADO", motivo },
+  }),
+};
+
+/** Motivo y referencia de los movimientos SALIDA de un despacho. */
+export const motivoDespacho = (codigo: string) => `Despacho ${codigo}`;
+
 const transicionInvalida = (de: string, a: string) =>
   new AppError(422, "TRANSICION_INVALIDA", `No se puede pasar de ${de} a ${a}`);
 
@@ -242,12 +326,7 @@ export async function crear(datos: CrearPedido, ctx: Contexto) {
     if (sinStock.length) throw stockInsuficiente(sinStock, indices);
 
     // Regla 4: el total se calcula aquí con el precio vigente; se ignora lo que envíe el cliente.
-    const lineas = datos.lineas.map((l) => {
-      const p = porId.get(l.productoId)!;
-      const subtotal = p.precio.mul(l.cantidad).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-      return { productoId: p.id, codigo: p.codigo, cantidad: l.cantidad, precioUnit: p.precio, subtotal };
-    });
-    const total = lineas.reduce((a, l) => a.add(l.subtotal), new Prisma.Decimal(0)).toDecimalPlaces(2);
+    const { lineas, total } = calcularLineas(datos.lineas, porId);
 
     const creado = await tx.pedido.create({
       data: {
@@ -272,37 +351,21 @@ export async function crear(datos: CrearPedido, ctx: Contexto) {
 
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "CREAR",
       entidad: ENTIDAD,
       entidadId: creado.id,
-      despues: {
-        codigo,
-        estado: "REGISTRADO",
-        cliente: { id: cliente.id, razonSocial: cliente.razonSocial },
-        condicionPago: datos.condicionPago,
-        total: dinero(total),
-        lineas: lineas.map((l) => ({
-          productoId: l.productoId,
-          codigo: l.codigo,
-          cantidad: l.cantidad,
-          precioUnit: dinero(l.precioUnit),
-          subtotal: dinero(l.subtotal),
-        })),
-      },
       ip: ctx.ip,
+      ...bitacoraPedido.crear({ codigo, cliente, condicionPago: datos.condicionPago, total, lineas }),
     });
 
     // Regla 7: contado ≤ S/ 2 000 → aprobación automática.
-    if (datos.condicionPago === "CONTADO" && total.lte(LIMITE_APROBACION_AUTOMATICA)) {
+    if (seApruebaAutomaticamente(datos.condicionPago, total)) {
       await tx.pedido.update({ where: { id: creado.id }, data: { estado: "APROBADO", fechaAprobacion: new Date() } });
       await auditar(tx, {
         usuarioId: ctx.usuarioId,
-        accion: "CAMBIO_ESTADO",
         entidad: ENTIDAD,
         entidadId: creado.id,
-        antes: { estado: "REGISTRADO" },
-        despues: { estado: "APROBADO", aprobacion: "AUTOMATICA", regla: "Contado con total ≤ S/ 2 000" },
         ip: ctx.ip,
+        ...bitacoraPedido.aprobacionAutomatica(),
       });
     }
     return creado.id;
@@ -346,11 +409,9 @@ export async function aprobar(id: number, ctx: Contexto) {
     await cambiarEstado(tx, id, "aprobar", { aprobadoPorId: ctx.usuarioId, fechaAprobacion: new Date() });
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "CAMBIO_ESTADO",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: p.estado },
-      despues: { estado: "APROBADO", aprobacion: "MANUAL" },
+      ...bitacoraPedido.aprobacion(p.estado),
       ip: ctx.ip,
     });
   });
@@ -368,7 +429,7 @@ export async function despachar(id: number, ctx: Contexto) {
       include: { producto: { select: { codigo: true, nombre: true } } },
       orderBy: { id: "asc" },
     });
-    const movimientos: { productoId: number; codigo: string; cantidad: number; stockResultante: number }[] = [];
+    const movimientos: MovimientoDespacho[] = [];
     for (const d of detalles) {
       // Descuento condicional: nunca deja stock negativo aunque haya despachos concurrentes.
       const r = await tx.producto.updateMany({
@@ -388,7 +449,7 @@ export async function despachar(id: number, ctx: Contexto) {
           tipo: "SALIDA",
           cantidad: d.cantidad,
           stockResultante: stock,
-          motivo: `Despacho ${p.codigo}`,
+          motivo: motivoDespacho(p.codigo),
           referencia: p.codigo,
           usuarioId: ctx.usuarioId,
         },
@@ -398,11 +459,9 @@ export async function despachar(id: number, ctx: Contexto) {
 
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "CAMBIO_ESTADO",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: p.estado },
-      despues: { estado: "DESPACHADO", movimientos },
+      ...bitacoraPedido.despacho(p.estado, movimientos),
       ip: ctx.ip,
     });
   });
@@ -415,11 +474,9 @@ export async function entregar(id: number, ctx: Contexto) {
     await cambiarEstado(tx, id, "entregar", { fechaEntrega: new Date() });
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "CAMBIO_ESTADO",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: p.estado },
-      despues: { estado: "ENTREGADO" },
+      ...bitacoraPedido.entrega(p.estado),
       ip: ctx.ip,
     });
   });
@@ -434,11 +491,9 @@ export async function anular(id: number, motivo: string, ctx: Contexto) {
     await cambiarEstado(tx, id, "anular", { motivoAnulacion: motivo }, desde);
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "ANULAR",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: p.estado },
-      despues: { estado: "ANULADO", motivo },
+      ...bitacoraPedido.anulacion(p.estado, motivo),
       ip: ctx.ip,
     });
   });

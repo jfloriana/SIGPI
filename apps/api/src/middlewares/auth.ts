@@ -30,7 +30,7 @@ export async function autenticar(req: Request, _res: Response, next: NextFunctio
 
   let id: number;
   try {
-    const payload = jwt.verify(cabecera.slice(7), config.jwtSecret) as jwt.JwtPayload;
+    const payload = jwt.verify(cabecera.slice(7), config.jwtSecret, { algorithms: ["HS256"] }) as jwt.JwtPayload;
     id = Number(payload.sub);
   } catch {
     throw noAutenticado("La sesión expiró o no es válida. Inicie sesión nuevamente");

@@ -1,5 +1,5 @@
 import cors from "cors";
-import express from "express";
+import express, { type Router } from "express";
 import helmet from "helmet";
 import { config } from "./config.ts";
 import { errorHandler, rutaNoEncontrada } from "./middlewares/errorHandler.ts";
@@ -15,6 +15,24 @@ import { proveedoresRouter } from "./modules/proveedores/routes.ts";
 import { reportesRouter } from "./modules/reportes/routes.ts";
 import { usuariosRouter } from "./modules/usuarios/routes.ts";
 
+/**
+ * Módulos montados bajo /api. Es la única lista de montaje: la prueba de seguridad la recorre para
+ * verificar que toda ruta (salvo POST /auth/login y GET /salud) exige token.
+ */
+export const MODULOS_API: [prefijo: string, router: Router][] = [
+  ["/auth", authRouter],
+  ["/usuarios", usuariosRouter],
+  ["/clientes", clientesRouter],
+  ["/categorias", categoriasRouter],
+  ["/productos", productosRouter],
+  ["/proveedores", proveedoresRouter],
+  ["/pedidos", pedidosRouter],
+  ["/inventario", inventarioRouter],
+  ["/ordenes-compra", ordenesCompraRouter],
+  ["/reportes", reportesRouter],
+  ["/bitacora", bitacoraRouter],
+];
+
 export function crearApp() {
   const app = express();
   app.disable("x-powered-by");
@@ -27,17 +45,7 @@ export function crearApp() {
   api.get("/salud", (_req, res) => {
     res.json({ estado: "ok" });
   });
-  api.use("/auth", authRouter);
-  api.use("/usuarios", usuariosRouter);
-  api.use("/clientes", clientesRouter);
-  api.use("/categorias", categoriasRouter);
-  api.use("/productos", productosRouter);
-  api.use("/proveedores", proveedoresRouter);
-  api.use("/pedidos", pedidosRouter);
-  api.use("/inventario", inventarioRouter);
-  api.use("/ordenes-compra", ordenesCompraRouter);
-  api.use("/reportes", reportesRouter);
-  api.use("/bitacora", bitacoraRouter);
+  for (const [prefijo, router] of MODULOS_API) api.use(prefijo, router);
   app.use("/api", api);
 
   app.use(rutaNoEncontrada);

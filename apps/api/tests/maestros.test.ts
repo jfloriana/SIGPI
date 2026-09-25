@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../src/db.ts";
-import { sembrar } from "../prisma/seed.ts";
+import { sembrarBase } from "../prisma/seed.ts";
 import { app, tokenDe, tokenRapido } from "./helpers.ts";
 
 type Rol = "ADMIN" | "GERENTE" | "VENDEDOR" | "ALMACENERO";
@@ -15,7 +15,7 @@ const EMAIL: Record<Rol, string> = {
 let tokens: Record<Rol, string>;
 
 beforeEach(async () => {
-  await sembrar();
+  await sembrarBase();
   tokens = {
     ADMIN: await tokenRapido(EMAIL.ADMIN),
     GERENTE: await tokenRapido(EMAIL.GERENTE),
@@ -530,7 +530,7 @@ describe("Datos de demostración", () => {
   });
 
   it("sembrar() es idempotente", async () => {
-    await sembrar();
+    await sembrarBase();
     expect(await prisma.cliente.count()).toBe(80);
     expect(await prisma.categoria.count()).toBe(8);
     expect(await prisma.proveedor.count()).toBe(3);

@@ -26,6 +26,7 @@ Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
   | 409 | `STOCK_INSUFICIENTE` | Pedidos (registro o despacho) o ajuste negativo que dejaría stock < 0. Incluye `productos[]`. |
   | 422 | `TRANSICION_INVALIDA` | Pedidos u órdenes de compra: cambio de estado que la máquina de estados no permite. |
   | 403 | `SEGREGACION_FUNCIONES` | Pedidos: quien registró el pedido intenta aprobarlo o despacharlo. |
+  | 413 | `CUERPO_DEMASIADO_GRANDE` | El cuerpo JSON supera 200 KB. |
   | 423 | `CUENTA_BLOQUEADA` | Login con cuenta bloqueada (incluye `bloqueadoHasta`). |
   | 500 | `ERROR_INTERNO` | Error inesperado. |
 
@@ -882,7 +883,38 @@ VENDEDOR y ALMACENERO → `403` en todas las rutas de bitácora.
 
 ## Datos de demostración (seed)
 
-- Usuarios (clave `Demo2026!`): `admin@`, `gerente@`, `vendedor1@`, `vendedor2@`, `almacen@distrinorte.pe`.
-- 8 categorías, 60 productos (códigos `ARR-`, `ACE-`, `AZU-`, `LAC-`, `FID-`, `BEB-`, `LIM-`, `CON-` + 3 dígitos), 7 en alerta: `ARR-005`, `ACE-003`, `AZU-005`, `LAC-003`, `FID-005`, `BEB-007`, `LIM-006`.
-- 80 clientes (30 RUC 20, 25 RUC 10, 25 DNI; repartidos en las 6 zonas; 2 inactivos), 3 proveedores.
-- Cada producto tiene un movimiento `ENTRADA` "Inventario inicial" (usuario: almacenero) de 95 días atrás, de modo que stock = suma de movimientos.
+`npm run setup` vacía la base y la recarga completa en ~1.5 s. Es idempotente: se puede ejecutar varias veces. Los datos son deterministas (PRNG con semilla fija) y las fechas son relativas al momento de la carga.
+
+**Maestros**
+- Usuarios (clave `Demo2026!`): `admin@`, `gerente@`, `vendedor1@`, `vendedor2@` y `almacen@distrinorte.pe`. Dados de alta 96 días atrás.
+- 8 categorías y 60 productos genéricos, con códigos `ARR-`, `ACE-`, `AZU-`, `LAC-`, `FID-`, `BEB-`, `LIM-` y `CON-` seguidos de 3 dígitos.
+- 80 clientes ficticios: 30 con RUC 20, 25 con RUC 10 y 25 con DNI, repartidos en las 6 zonas; 2 están inactivos.
+- 3 proveedores: Agroindustrias Valle Moche (arroz, azúcar y fideos), Alimentos Costa Norte (aceites, lácteos, bebidas y conservas) y Química Hogar Trujillo (limpieza).
+
+**Historial de los últimos 90 días (hasta hoy, hora de Lima)**
+- **~300 pedidos** de vendedor1 y vendedor2 a clientes activos:
+  - Registrados de lunes a sábado entre 8:00 y 19:00, con 1 a 8 líneas.
+  - Cantidades acordes a la unidad y unos 30 % a crédito.
+  - Se generaron con la **misma lógica que los servicios**: total en el servidor, aprobación automática de la regla 7 (contado ≤ S/ 2 000), la aprobación manual la hace el gerente y quien registra nunca aprueba ni despacha.
+- **Estados:**
+  - Los pedidos con más de 10 días están ENTREGADOS, salvo unos 6 % ANULADOS con motivo.
+  - Los últimos días quedan pendientes para la demostración: unos **3 REGISTRADOS** a crédito (esperan la aprobación del gerente), **5 APROBADOS** (en la cola de despacho) y **4 DESPACHADOS** (por entregar).
+  - El stock actual alcanza para aprobar y despachar todos los pendientes.
+- **Fechas:** aprobación, despacho y entrega son posteriores al registro. Las ventas se reparten en casi todos los días hábiles, así que el tablero de 30 días muestra actividad diaria.
+- **Órdenes de compra:**
+  - ~9 RECIBIDAS de reposición, cada una con sus movimientos `ENTRADA` «Recepción OC-…».
+  - **1 APROBADA** por recibir (ARR-005, AZU-005 y FID-005).
+  - **1 PENDIENTE** de aprobar (LIM-006).
+  - Los costos son el 80 % del precio (supuesto del demo).
+- **Inventario:**
+  - Cada producto parte de un `ENTRADA` «Inventario inicial» 95 días atrás.
+  - Cada despacho crea una `SALIDA` «Despacho PED-…» por línea y cada recepción una `ENTRADA`, todas con su `stockResultante`.
+  - El stock nunca fue negativo; al registrar cada pedido había stock suficiente; y **stock = suma de movimientos** en todos los productos.
+- **Alertas al final: 7 productos**: `ARR-005`, `ACE-003` (Aceite vegetal bidón 5 L, **12 / 20**, el dato que usa la landing), `AZU-005`, `LAC-003`, `FID-005`, `BEB-007` y `LIM-006`. ACE-003, LAC-003 y BEB-007 no tienen orden en curso, así que sirven para demostrar «Generar orden de compra sugerida».
+- **Bitácora (~1 500 registros):**
+  - El CREAR de cada usuario y, por cada pedido, su CREAR, sus CAMBIO_ESTADO (con `antes`/`despues`) y su ANULAR si corresponde.
+  - Por cada orden de compra: CREAR, aprobación y RECEPCION.
+  - Un `LOGIN_OK` por usuario y día con actividad (el ADMIN, los lunes).
+  - Todos con la fecha simulada e `ip: null`.
+
+Los códigos (`PED-000123`, `OC-000010`) derivan del id, así que no empiezan necesariamente en 1 después de varias cargas.

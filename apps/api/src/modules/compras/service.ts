@@ -82,6 +82,51 @@ const subtotal = (d: { cantidad: number; costoUnit: Prisma.Decimal }) =>
 const totalDe = (detalles: { cantidad: number; costoUnit: Prisma.Decimal }[]) =>
   detalles.reduce((a, d) => a.add(subtotal(d)), new Prisma.Decimal(0));
 
+// ---------------------------------------------------------------------------------------------
+// Lógica pura compartida con la carga de datos históricos (prisma/seed).
+
+/** Costo unitario sugerido: 80 % del precio de venta, a 2 decimales (supuesto del demo). */
+export const costoSugerido = (precio: Prisma.Decimal) =>
+  precio.mul(FACTOR_COSTO_SUGERIDO).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+
+/** Motivo y referencia de los movimientos ENTRADA de una recepción. */
+export const motivoRecepcion = (codigo: string) => `Recepción ${codigo}`;
+
+export type MovimientoRecepcion = { productoId: number; codigo: string; cantidad: number; stockResultante: number };
+
+/** Contenido de la bitácora (acción, antes y después) de cada operación sobre una orden de compra. */
+export const bitacoraOrden = {
+  crear: (d: {
+    codigo: string;
+    proveedor: { id: number; razonSocial: string };
+    lineas: { productoId: number; codigo: string; cantidad: number; costoUnit: string }[];
+  }) => ({
+    accion: "CREAR" as const,
+    despues: {
+      codigo: d.codigo,
+      estado: "PENDIENTE",
+      proveedor: { id: d.proveedor.id, razonSocial: d.proveedor.razonSocial },
+      total: dinero(totalDe(d.lineas.map((l) => ({ cantidad: l.cantidad, costoUnit: new Prisma.Decimal(l.costoUnit) })))),
+      lineas: d.lineas.map((l) => ({ productoId: l.productoId, codigo: l.codigo, cantidad: l.cantidad, costoUnit: l.costoUnit })),
+    },
+  }),
+  aprobacion: (estadoPrevio: string) => ({
+    accion: "CAMBIO_ESTADO" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "APROBADA" },
+  }),
+  recepcion: (estadoPrevio: string, movimientos: MovimientoRecepcion[]) => ({
+    accion: "RECEPCION" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "RECIBIDA", movimientos },
+  }),
+  anulacion: (estadoPrevio: string, motivo: string) => ({
+    accion: "ANULAR" as const,
+    antes: { estado: estadoPrevio },
+    despues: { estado: "ANULADA", motivo },
+  }),
+};
+
 export async function listar(q: ListarOrdenes, ctx: Contexto) {
   const visibilidad: Prisma.OrdenCompraWhereInput = ctx.rol === ALMACENERO ? { estado: { in: ESTADOS_ALMACENERO } } : {};
   const filtros: Prisma.OrdenCompraWhereInput = {
@@ -177,7 +222,7 @@ export async function sugerida(datos: Sugerida) {
   }
 
   const lineas = productos.map((p) => {
-    const costoUnit = p.precio.mul(FACTOR_COSTO_SUGERIDO).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+    const costoUnit = costoSugerido(p.precio);
     // cantidad = stockMinimo × 2 − stock; al menos 1 (p. ej., si se pide un producto que no está en alerta).
     const cantidad = Math.max(p.stockMinimo * 2 - p.stock, 1);
     return {
@@ -233,25 +278,16 @@ export async function crear(datos: CrearOrden, ctx: Contexto) {
     const codigo = codigoOrden(orden.id);
     await tx.ordenCompra.update({ where: { id: orden.id }, data: { codigo } });
 
-    const total = totalDe(datos.lineas.map((l) => ({ cantidad: l.cantidad, costoUnit: new Prisma.Decimal(l.costoUnit) })));
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "CREAR",
       entidad: ENTIDAD,
       entidadId: orden.id,
-      despues: {
-        codigo,
-        estado: "PENDIENTE",
-        proveedor: { id: proveedor.id, razonSocial: proveedor.razonSocial },
-        total: dinero(total),
-        lineas: datos.lineas.map((l) => ({
-          productoId: l.productoId,
-          codigo: porId.get(l.productoId)!.codigo,
-          cantidad: l.cantidad,
-          costoUnit: l.costoUnit,
-        })),
-      },
       ip: ctx.ip,
+      ...bitacoraOrden.crear({
+        codigo,
+        proveedor,
+        lineas: datos.lineas.map((l) => ({ ...l, codigo: porId.get(l.productoId)!.codigo })),
+      }),
     });
     return orden.id;
   });
@@ -282,11 +318,9 @@ export async function aprobar(id: number, ctx: Contexto) {
     await cambiarEstado(tx, id, "aprobar");
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "CAMBIO_ESTADO",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: o.estado },
-      despues: { estado: "APROBADA" },
+      ...bitacoraOrden.aprobacion(o.estado),
       ip: ctx.ip,
     });
   });
@@ -299,11 +333,9 @@ export async function anular(id: number, motivo: string, ctx: Contexto) {
     await cambiarEstado(tx, id, "anular");
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "ANULAR",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: o.estado },
-      despues: { estado: "ANULADA", motivo },
+      ...bitacoraOrden.anulacion(o.estado, motivo),
       ip: ctx.ip,
     });
   });
@@ -320,7 +352,7 @@ export async function recepcionar(id: number, ctx: Contexto) {
       include: { producto: { select: { codigo: true } } },
       orderBy: { id: "asc" },
     });
-    const movimientos: { productoId: number; codigo: string; cantidad: number; stockResultante: number }[] = [];
+    const movimientos: MovimientoRecepcion[] = [];
     for (const d of detalles) {
       const { stock } = await tx.producto.update({
         where: { id: d.productoId },
@@ -333,7 +365,7 @@ export async function recepcionar(id: number, ctx: Contexto) {
           tipo: "ENTRADA",
           cantidad: d.cantidad,
           stockResultante: stock,
-          motivo: `Recepción ${o.codigo}`,
+          motivo: motivoRecepcion(o.codigo),
           referencia: o.codigo,
           usuarioId: ctx.usuarioId,
         },
@@ -342,11 +374,9 @@ export async function recepcionar(id: number, ctx: Contexto) {
     }
     await auditar(tx, {
       usuarioId: ctx.usuarioId,
-      accion: "RECEPCION",
       entidad: ENTIDAD,
       entidadId: id,
-      antes: { estado: o.estado },
-      despues: { estado: "RECIBIDA", movimientos },
+      ...bitacoraOrden.recepcion(o.estado, movimientos),
       ip: ctx.ip,
     });
   });

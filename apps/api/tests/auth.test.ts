@@ -5,13 +5,13 @@ import { prisma } from "../src/db.ts";
 import { autenticar } from "../src/middlewares/auth.ts";
 import { errorHandler } from "../src/middlewares/errorHandler.ts";
 import { requireRol } from "../src/middlewares/requireRol.ts";
-import { sembrar } from "../prisma/seed.ts";
+import { sembrarBase } from "../prisma/seed.ts";
 import { app, tokenDe } from "./helpers.ts";
 
 const login = (email: string, clave: string) => request(app).post("/api/auth/login").send({ email, clave });
 
 beforeEach(async () => {
-  await sembrar();
+  await sembrarBase();
 });
 
 describe("Inicio de sesión", () => {

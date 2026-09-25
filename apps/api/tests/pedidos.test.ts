@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "../src/db.ts";
-import { sembrar } from "../prisma/seed.ts";
+import { sembrarBase } from "../prisma/seed.ts";
 import { app, tokenRapido } from "./helpers.ts";
 
 type Quien = "ADMIN" | "GERENTE" | "VENDEDOR" | "VENDEDOR2" | "ALMACENERO";
@@ -18,7 +18,7 @@ let clienteId: number;
 const prod: Record<string, { id: number; stock: number; precio: string }> = {};
 
 beforeEach(async () => {
-  await sembrar();
+  await sembrarBase();
   tokens = Object.fromEntries(
     await Promise.all((Object.keys(EMAIL) as Quien[]).map(async (q) => [q, await tokenRapido(EMAIL[q])])),
   ) as Record<Quien, string>;

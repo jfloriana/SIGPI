@@ -34,14 +34,21 @@ function limpiar(valor: unknown): unknown {
  * que la operación auditada: si la operación se revierte, el registro también.
  */
 export async function auditar(tx: Db, datos: DatosAuditoria) {
-  return tx.bitacora.create({
-    data: {
-      usuarioId: datos.usuarioId,
-      accion: datos.accion,
-      entidad: datos.entidad,
-      entidadId: datos.entidadId == null ? null : String(datos.entidadId),
-      detalle: JSON.stringify({ antes: limpiar(datos.antes), despues: limpiar(datos.despues) }),
-      ip: datos.ip ?? null,
-    },
-  });
+  return tx.bitacora.create({ data: filaBitacora(datos) });
+}
+
+/**
+ * Fila de bitácora tal como la guarda `auditar()`. La carga de datos históricos (seed) la usa
+ * con `fecha` simulada para producir exactamente los mismos registros que el sistema.
+ */
+export function filaBitacora(datos: DatosAuditoria, fecha?: Date) {
+  return {
+    usuarioId: datos.usuarioId,
+    accion: datos.accion,
+    entidad: datos.entidad,
+    entidadId: datos.entidadId == null ? null : String(datos.entidadId),
+    detalle: JSON.stringify({ antes: limpiar(datos.antes), despues: limpiar(datos.despues) }),
+    ip: datos.ip ?? null,
+    ...(fecha && { fecha }),
+  };
 }
