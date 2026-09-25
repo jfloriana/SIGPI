@@ -4,6 +4,11 @@ import helmet from "helmet";
 import { config } from "./config.ts";
 import { errorHandler, rutaNoEncontrada } from "./middlewares/errorHandler.ts";
 import { authRouter } from "./modules/auth/routes.ts";
+import { categoriasRouter } from "./modules/categorias/routes.ts";
+import { clientesRouter } from "./modules/clientes/routes.ts";
+import { productosRouter } from "./modules/productos/routes.ts";
+import { proveedoresRouter } from "./modules/proveedores/routes.ts";
+import { usuariosRouter } from "./modules/usuarios/routes.ts";
 
 export function crearApp() {
   const app = express();
@@ -18,6 +23,11 @@ export function crearApp() {
     res.json({ estado: "ok" });
   });
   api.use("/auth", authRouter);
+  api.use("/usuarios", usuariosRouter);
+  api.use("/clientes", clientesRouter);
+  api.use("/categorias", categoriasRouter);
+  api.use("/productos", productosRouter);
+  api.use("/proveedores", proveedoresRouter);
   app.use("/api", api);
 
   app.use(rutaNoEncontrada);

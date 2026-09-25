@@ -47,6 +47,25 @@
   body {
     @apply bg-white font-sans text-slate-900 antialiased;
   }
+  ::selection {
+    @apply bg-marino-100 text-marino-900;
+  }
+  input,
+  textarea {
+    caret-color: var(--color-marino-500);
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--color-teal-700);
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  table {
+    font-variant-numeric: tabular-nums;
+  }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-marino-500;
   }
@@ -97,6 +116,12 @@
 @keyframes entrar {
   from {
     transform: translateX(-100%);
+  }
+}
+
+@keyframes deslizar {
+  from {
+    transform: translateX(100%);
   }
 }
 
