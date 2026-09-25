@@ -6,6 +6,7 @@ import { errorHandler, rutaNoEncontrada } from "./middlewares/errorHandler.ts";
 import { authRouter } from "./modules/auth/routes.ts";
 import { categoriasRouter } from "./modules/categorias/routes.ts";
 import { clientesRouter } from "./modules/clientes/routes.ts";
+import { pedidosRouter } from "./modules/pedidos/routes.ts";
 import { productosRouter } from "./modules/productos/routes.ts";
 import { proveedoresRouter } from "./modules/proveedores/routes.ts";
 import { usuariosRouter } from "./modules/usuarios/routes.ts";
@@ -28,6 +29,7 @@ export function crearApp() {
   api.use("/categorias", categoriasRouter);
   api.use("/productos", productosRouter);
   api.use("/proveedores", proveedoresRouter);
+  api.use("/pedidos", pedidosRouter);
   app.use("/api", api);
 
   app.use(rutaNoEncontrada);

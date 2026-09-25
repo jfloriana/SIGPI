@@ -1,4 +1,4 @@
-# API de SIGPI – contrato (Fase 1 y 2)
+# API de SIGPI – contrato (Fases 1 a 3)
 
 Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
 
@@ -23,6 +23,9 @@ Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
   | 409 | `DUPLICADO` | Valor único repetido. Con `campos.<campo>`. |
   | 422 | `OPERACION_NO_PERMITIDA` | Regla de negocio (p. ej., el admin intenta desactivarse). Con `campos`. |
   | 422 | `CAMPO_NO_EDITABLE` | Se envió `stock` a productos. Con `campos.stock`. |
+  | 409 | `STOCK_INSUFICIENTE` | Pedidos: cantidad > stock al registrar o al despachar. Incluye `productos[]`. |
+  | 422 | `TRANSICION_INVALIDA` | Pedidos: cambio de estado que la máquina de estados no permite. |
+  | 403 | `SEGREGACION_FUNCIONES` | Pedidos: quien registró el pedido intenta aprobarlo o despacharlo. |
   | 423 | `CUENTA_BLOQUEADA` | Login con cuenta bloqueada (incluye `bloqueadoHasta`). |
   | 500 | `ERROR_INTERNO` | Error inesperado. |
 
@@ -80,6 +83,11 @@ Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
 | `GET /proveedores`, `GET /proveedores/:id` | ✔ | ✔ | 403 | ✔ |
 | `POST /proveedores` | ✔ | ✔ | 403 | 403 |
 | `PATCH /proveedores/:id` | ✔ | 403 | 403 | 403 |
+| `GET /pedidos`, `GET /pedidos/:id` | ✔ (todos) | ✔ (todos) | ✔ (solo los suyos) | ✔ (aprobados, despachados, entregados) |
+| `POST /pedidos` | 403 | 403 | ✔ | 403 |
+| `POST /pedidos/:id/aprobar` | 403 | ✔ | 403 | 403 |
+| `POST /pedidos/:id/despachar`, `/entregar` | 403 | 403 | 403 | ✔ |
+| `POST /pedidos/:id/anular` | 403 | ✔ | ✔ (suyos en REGISTRADO) | 403 |
 
 ---
 
@@ -288,6 +296,179 @@ Query: `page`, `pageSize`, `buscar` (razón social o RUC). Orden: razón social 
 
 ### `PATCH /proveedores/:id` — ADMIN
 Campos opcionales: `ruc`, `razonSocial`, `telefono` (`""`/`null` lo borra). `200`: Proveedor.
+
+---
+
+## Pedidos
+
+### Estados y transiciones (regla 6)
+
+```
+REGISTRADO ──aprobar──▶ APROBADO ──despachar──▶ DESPACHADO ──entregar──▶ ENTREGADO
+     │                      │
+     └──────anular──────────┴──▶ ANULADO
+```
+Cualquier otra transición → `422 TRANSICION_INVALIDA` con el mensaje exacto `No se puede pasar de <ESTADO_ACTUAL> a <ESTADO_DESTINO>` (p. ej., `No se puede pasar de ENTREGADO a APROBADO`). No trae `campos`.
+
+### Permisos por acción
+
+| Acción | Quién | Estado de origen | Notas |
+|---|---|---|---|
+| Registrar (`POST /pedidos`) | VENDEDOR | — | Queda como vendedor del pedido. |
+| `aprobar` | GERENTE | REGISTRADO | 403 `SEGREGACION_FUNCIONES` si el gerente es quien lo registró. |
+| `despachar` | ALMACENERO | APROBADO | 403 `SEGREGACION_FUNCIONES` si el almacenero es quien lo registró. |
+| `entregar` | ALMACENERO | DESPACHADO | |
+| `anular` | GERENTE | REGISTRADO o APROBADO | Motivo obligatorio. |
+| `anular` | VENDEDOR | Solo **sus** pedidos en REGISTRADO | Suyo en APROBADO → 403 `ACCESO_DENEGADO` («Solo puede anular sus pedidos en estado REGISTRADO»). |
+| — | ADMIN | — | Solo consulta: toda acción → 403. |
+
+Orden de validación en cada acción: rol (403) → visibilidad (403) → máquina de estados (422) → restricción del vendedor y segregación (403).
+
+**No calcule los botones en el frontend**: use `acciones` del detalle, que aplica la misma lógica que los endpoints.
+
+### Visibilidad
+
+| Rol | Ve |
+|---|---|
+| ADMIN, GERENTE | Todos los pedidos. |
+| VENDEDOR | Solo los suyos (se ignora `vendedorId`). Detalle de otro vendedor → 403. |
+| ALMACENERO | Solo APROBADO, DESPACHADO y ENTREGADO. Detalle de un REGISTRADO o ANULADO → 403. |
+
+### Objeto **PedidoFila** (lista)
+```json
+{
+  "id": 12,
+  "codigo": "PED-000012",
+  "fecha": "2026-09-24T15:20:11.000Z",
+  "estado": "APROBADO",
+  "condicionPago": "CONTADO",
+  "total": "58.40",
+  "cliente": { "id": 1, "razonSocial": "Minimarket San Martín S.A.C.", "zona": "Centro" },
+  "vendedor": { "id": 3, "nombre": "Luis Paredes Castillo" },
+  "numLineas": 2
+}
+```
+
+### Objeto **PedidoDetalle**
+```json
+{
+  "id": 12,
+  "codigo": "PED-000012",
+  "fecha": "2026-09-24T15:20:11.000Z",
+  "estado": "DESPACHADO",
+  "condicionPago": "CREDITO",
+  "total": "58.40",
+  "cliente": { "id": 1, "tipoDoc": "RUC", "numDoc": "20632214287", "razonSocial": "Minimarket San Martín S.A.C.", "direccion": "Av. España 711", "telefono": "954 813 752", "zona": "Centro" },
+  "vendedor": { "id": 3, "nombre": "Luis Paredes Castillo" },
+  "aprobadoPor": { "id": 2, "nombre": "Carlos Mendoza Ríos" },
+  "aprobacionAutomatica": false,
+  "despachadoPor": { "id": 5, "nombre": "Jorge Alvarado Díaz" },
+  "fechaAprobacion": "2026-09-24T15:30:00.000Z",
+  "fechaDespacho": "2026-09-24T16:02:45.000Z",
+  "fechaEntrega": null,
+  "motivoAnulacion": null,
+  "lineas": [
+    { "id": 30, "producto": { "id": 9, "codigo": "ACE-001", "nombre": "Aceite vegetal botella 1 L", "unidad": "UND" }, "cantidad": 3, "precioUnit": "9.90", "subtotal": "29.70" },
+    { "id": 31, "producto": { "id": 24, "codigo": "LAC-001", "nombre": "Leche evaporada entera lata 400 g", "unidad": "UND" }, "cantidad": 7, "precioUnit": "4.10", "subtotal": "28.70" }
+  ],
+  "historial": [
+    {
+      "id": 101, "accion": "CREAR", "usuario": { "id": 3, "nombre": "Luis Paredes Castillo" }, "fecha": "2026-09-24T15:20:11.000Z",
+      "antes": null,
+      "despues": {
+        "codigo": "PED-000012", "estado": "REGISTRADO", "cliente": { "id": 1, "razonSocial": "Minimarket San Martín S.A.C." },
+        "condicionPago": "CREDITO", "total": "58.40",
+        "lineas": [
+          { "productoId": 9, "codigo": "ACE-001", "cantidad": 3, "precioUnit": "9.90", "subtotal": "29.70" },
+          { "productoId": 24, "codigo": "LAC-001", "cantidad": 7, "precioUnit": "4.10", "subtotal": "28.70" }
+        ]
+      }
+    },
+    {
+      "id": 102, "accion": "CAMBIO_ESTADO", "usuario": { "id": 2, "nombre": "Carlos Mendoza Ríos" }, "fecha": "2026-09-24T15:30:00.000Z",
+      "antes": { "estado": "REGISTRADO" }, "despues": { "estado": "APROBADO", "aprobacion": "MANUAL" }
+    },
+    {
+      "id": 103, "accion": "CAMBIO_ESTADO", "usuario": { "id": 5, "nombre": "Jorge Alvarado Díaz" }, "fecha": "2026-09-24T16:02:45.000Z",
+      "antes": { "estado": "APROBADO" },
+      "despues": { "estado": "DESPACHADO", "movimientos": [
+        { "productoId": 9, "codigo": "ACE-001", "cantidad": 3, "stockResultante": 477 },
+        { "productoId": 24, "codigo": "LAC-001", "cantidad": 7, "stockResultante": 1193 }
+      ] }
+    }
+  ],
+  "acciones": ["entregar"]
+}
+```
+- `total`, `precioUnit` y `subtotal` son strings con 2 decimales. `precioUnit` es el precio del producto **al registrar** y no cambia si después se modifica el precio del producto.
+- `aprobadoPor` es `null` si el pedido aún no está aprobado **o** si se aprobó automáticamente; para distinguirlos use `aprobacionAutomatica` (`true` = contado ≤ S/ 2 000, aprobado por el sistema al registrar).
+- `despachadoPor`, `fechaAprobacion`, `fechaDespacho`, `fechaEntrega` y `motivoAnulacion` son `null` hasta que ocurre el evento.
+- `historial`: registros de bitácora del pedido en orden cronológico, para la línea de tiempo «quién y cuándo». `usuario` puede ser `null`. En los cambios de estado, `antes` es `{ "estado": "<anterior>" }`. Formas de `despues`:
+  - `CREAR`: el pedido registrado (ejemplo arriba).
+  - `CAMBIO_ESTADO`, aprobación automática: `{ "estado": "APROBADO", "aprobacion": "AUTOMATICA", "regla": "Contado con total ≤ S/ 2 000" }` (usuario = el vendedor).
+  - `CAMBIO_ESTADO`, aprobación manual: `{ "estado": "APROBADO", "aprobacion": "MANUAL" }`.
+  - `CAMBIO_ESTADO`, despacho: `{ "estado": "DESPACHADO", "movimientos": [{ productoId, codigo, cantidad, stockResultante }] }`.
+  - `CAMBIO_ESTADO`, entrega: `{ "estado": "ENTREGADO" }`.
+  - `ANULAR`: `{ "estado": "ANULADO", "motivo": "…" }`.
+- `acciones`: subconjunto, en este orden, de `["aprobar", "despachar", "entregar", "anular"]` con lo que **el usuario actual** puede hacer ahora. Queda vacío cuando no puede hacer nada (p. ej., ADMIN, o un pedido ENTREGADO o ANULADO).
+
+### `GET /pedidos` — todos los roles (según la visibilidad)
+Query:
+- `page`, `pageSize`
+- `estado`: `REGISTRADO|APROBADO|DESPACHADO|ENTREGADO|ANULADO`
+- `desde`, `hasta`: fechas `AAAA-MM-DD` en hora de Lima; `hasta` es **inclusive** (cubre todo ese día). Otro formato, o `hasta` anterior a `desde` → 400 (`campos.desde` / `campos.hasta`).
+- `vendedorId`, `clienteId`: números (`vendedorId` se ignora si quien consulta es VENDEDOR).
+- `buscar`: código del pedido (acepta minúsculas o parte del código, p. ej. `ped-000012` o `12`) o razón social del cliente.
+- `orden`: `recientes` (por defecto, los más recientes primero) o `antiguedad` (los más antiguos primero). Para la **cola de despacho**: `?estado=APROBADO&orden=antiguedad`.
+
+`200`: `{ "datos": [PedidoFila, …], "total": 3, "page": 1, "pageSize": 20 }`
+
+### `GET /pedidos/:id` — todos los roles (según la visibilidad)
+`200`: PedidoDetalle. `403` si el usuario no puede verlo, `404` si no existe.
+
+### `POST /pedidos` — VENDEDOR
+```json
+{ "clienteId": 1, "condicionPago": "CONTADO", "lineas": [ { "productoId": 9, "cantidad": 3 }, { "productoId": 24, "cantidad": 7 } ] }
+```
+- `condicionPago`: `CONTADO` o `CREDITO`. `cantidad`: entero > 0. Entre 1 y 50 líneas, sin repetir producto.
+- **El total lo calcula el servidor** con el precio vigente; se ignoran `total`, `precioUnit` o `subtotal` si vienen en el cuerpo.
+- El stock **no** se descuenta al registrar (se descuenta al despachar), pero cada cantidad debe ser ≤ al stock actual.
+- Regla 7: `CONTADO` con total ≤ `2000.00` → el pedido nace **APROBADO** (`aprobacionAutomatica: true`); `CREDITO`, o total > 2000 → queda **REGISTRADO** y lo aprueba el gerente.
+
+`201`: PedidoDetalle (con las `acciones` del vendedor).
+
+Errores:
+- `400 VALIDACION`: `campos.clienteId` (falta, o «El cliente no existe o está inactivo»), `campos.condicionPago`, `campos.lineas` («El pedido debe tener al menos una línea» / «No repita el mismo producto en dos líneas»), `campos["lineas.<i>.cantidad"]` y `campos["lineas.<i>.productoId"]` («El producto no existe o está inactivo»). `<i>` es la posición de la línea en el arreglo enviado, contando desde 0.
+- `409 STOCK_INSUFICIENTE`:
+  ```json
+  { "error": {
+      "codigo": "STOCK_INSUFICIENTE",
+      "mensaje": "Stock insuficiente para Frejol canario bolsa 1 kg (ARR-005): stock disponible 18, solicitado 20",
+      "campos": { "lineas.1.cantidad": "Stock disponible: 18" },
+      "productos": [ { "productoId": 5, "codigo": "ARR-005", "nombre": "Frejol canario bolsa 1 kg", "stockDisponible": 18, "solicitado": 20 } ]
+  } }
+  ```
+  Si faltan varios productos, `productos` trae uno por cada línea con problema y el mensaje los separa con `; `. No se crea nada.
+
+### `POST /pedidos/:id/aprobar` — GERENTE
+Sin cuerpo. `200`: PedidoDetalle. Errores: `403` (rol, visibilidad o `SEGREGACION_FUNCIONES`), `404`, `422 TRANSICION_INVALIDA`.
+
+### `POST /pedidos/:id/despachar` — ALMACENERO
+Sin cuerpo. **Atómico**: descuenta el stock de todas las líneas, crea un movimiento `SALIDA` por línea (motivo `Despacho PED-000012`, referencia `PED-000012`, con `stockResultante`) y pasa el pedido a DESPACHADO. Si alguna línea ya no tiene stock → `409 STOCK_INSUFICIENTE` y **no cambia nada**. Este 409 no trae `campos`, y `productos` contiene el primer producto que falló. El stock nunca queda negativo: dos despachos simultáneos no pueden consumir el mismo stock ni despachar dos veces el mismo pedido (el segundo recibe 409 o 422).
+`200`: PedidoDetalle. Errores: `403`, `404`, `409`, `422`.
+
+### `POST /pedidos/:id/entregar` — ALMACENERO
+Sin cuerpo. `200`: PedidoDetalle. Errores: `403`, `404`, `422`.
+
+### `POST /pedidos/:id/anular` — GERENTE y VENDEDOR (ver permisos)
+```json
+{ "motivo": "Cliente canceló por teléfono" }
+```
+`motivo`: de 10 a 300 caracteres (se recortan los espacios). Si falta o es corto → `400` con `campos.motivo` («El motivo debe tener al menos 10 caracteres»).
+`200`: PedidoDetalle con `estado: "ANULADO"` y `motivoAnulacion`. Errores: `400`, `403`, `404`, `422` (p. ej., `No se puede pasar de DESPACHADO a ANULADO`).
+
+### Bitácora de pedidos
+Cada operación deja un registro, dentro de la misma transacción: registrar → `CREAR` (más un `CAMBIO_ESTADO` si se aprueba automáticamente); aprobar, despachar y entregar → `CAMBIO_ESTADO`; anular → `ANULAR`. Las operaciones rechazadas no dejan registro.
 
 ---
 
