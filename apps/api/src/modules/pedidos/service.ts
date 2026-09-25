@@ -4,6 +4,7 @@ import { Prisma } from "../../generated/prisma/client.ts";
 import { auditar } from "../../services/auditoria.ts";
 import { contiene, type Contexto } from "../../utils/consultas.ts";
 import { AppError, accesoDenegado, noEncontrado } from "../../utils/errores.ts";
+import { filtroFechas } from "../../utils/fechas.ts";
 import { paginado, rango } from "../../utils/paginacion.ts";
 import { ROLES, type Rol } from "../../utils/roles.ts";
 import type { CrearPedido, EstadoPedido, ListarPedidos } from "./schemas.ts";
@@ -132,20 +133,12 @@ function filaRespuesta(p: PedidoFila) {
   };
 }
 
-/** Inicio del día `AAAA-MM-DD` en America/Lima (UTC-5, sin horario de verano). */
-const inicioDiaLima = (fecha: string) => new Date(`${fecha}T00:00:00-05:00`);
-
 export async function listar(q: ListarPedidos, ctx: Contexto) {
   const filtros: Prisma.PedidoWhereInput = {
     ...(q.estado && { estado: q.estado }),
     ...(q.vendedorId && ctx.rol !== VENDEDOR && { vendedorId: q.vendedorId }),
     ...(q.clienteId && { clienteId: q.clienteId }),
-    ...((q.desde || q.hasta) && {
-      fecha: {
-        ...(q.desde && { gte: inicioDiaLima(q.desde) }),
-        ...(q.hasta && { lt: new Date(inicioDiaLima(q.hasta).getTime() + 86_400_000) }),
-      },
-    }),
+    ...((q.desde || q.hasta) && { fecha: filtroFechas(q.desde, q.hasta) }),
     ...(q.buscar && {
       OR: [{ codigo: { contains: q.buscar.toUpperCase() } }, { cliente: { razonSocial: contiene(q.buscar) } }],
     }),

@@ -1,4 +1,4 @@
-# API de SIGPI – contrato (Fases 1 a 3)
+# API de SIGPI – contrato (Fases 1 a 4)
 
 Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
 
@@ -23,8 +23,8 @@ Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
   | 409 | `DUPLICADO` | Valor único repetido. Con `campos.<campo>`. |
   | 422 | `OPERACION_NO_PERMITIDA` | Regla de negocio (p. ej., el admin intenta desactivarse). Con `campos`. |
   | 422 | `CAMPO_NO_EDITABLE` | Se envió `stock` a productos. Con `campos.stock`. |
-  | 409 | `STOCK_INSUFICIENTE` | Pedidos: cantidad > stock al registrar o al despachar. Incluye `productos[]`. |
-  | 422 | `TRANSICION_INVALIDA` | Pedidos: cambio de estado que la máquina de estados no permite. |
+  | 409 | `STOCK_INSUFICIENTE` | Pedidos (registro o despacho) o ajuste negativo que dejaría stock < 0. Incluye `productos[]`. |
+  | 422 | `TRANSICION_INVALIDA` | Pedidos u órdenes de compra: cambio de estado que la máquina de estados no permite. |
   | 403 | `SEGREGACION_FUNCIONES` | Pedidos: quien registró el pedido intenta aprobarlo o despacharlo. |
   | 423 | `CUENTA_BLOQUEADA` | Login con cuenta bloqueada (incluye `bloqueadoHasta`). |
   | 500 | `ERROR_INTERNO` | Error inesperado. |
@@ -88,6 +88,13 @@ Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
 | `POST /pedidos/:id/aprobar` | 403 | ✔ | 403 | 403 |
 | `POST /pedidos/:id/despachar`, `/entregar` | 403 | 403 | 403 | ✔ |
 | `POST /pedidos/:id/anular` | 403 | ✔ | ✔ (suyos en REGISTRADO) | 403 |
+| `GET /inventario/kardex/:productoId`, `GET /inventario/alertas` | ✔ | ✔ | 403 | ✔ |
+| `POST /inventario/ajustes` | ✔ | 403 | 403 | ✔ |
+| `GET /ordenes-compra`, `GET /ordenes-compra/:id` | ✔ | ✔ | 403 | ✔ (solo APROBADA y RECIBIDA) |
+| `POST /ordenes-compra`, `POST /ordenes-compra/sugerida` | ✔ | ✔ | 403 | 403 |
+| `POST /ordenes-compra/:id/aprobar` | 403 | ✔ | 403 | 403 |
+| `POST /ordenes-compra/:id/recepcionar` | 403 | 403 | 403 | ✔ |
+| `POST /ordenes-compra/:id/anular` | ✔ | ✔ | 403 | 403 |
 
 ---
 
@@ -469,6 +476,250 @@ Sin cuerpo. `200`: PedidoDetalle. Errores: `403`, `404`, `422`.
 
 ### Bitácora de pedidos
 Cada operación deja un registro, dentro de la misma transacción: registrar → `CREAR` (más un `CAMBIO_ESTADO` si se aprueba automáticamente); aprobar, despachar y entregar → `CAMBIO_ESTADO`; anular → `ANULAR`. Las operaciones rechazadas no dejan registro.
+
+---
+
+## Inventario
+
+El stock de un producto **solo** cambia con movimientos. Tipos de movimiento:
+
+| Tipo | Signo | Origen |
+|---|---|---|
+| `ENTRADA` | + | Recepción de una orden de compra, o entrada manual (`POST /inventario/ajustes`). |
+| `SALIDA` | − | Solo por despacho de pedidos (no se registra a mano). |
+| `AJUSTE_POSITIVO` | + | Ajuste manual (sobrante de conteo, etc.). |
+| `AJUSTE_NEGATIVO` | − | Ajuste manual (merma, rotura, etc.); nunca deja el stock < 0. |
+
+Objeto **Movimiento**:
+```json
+{
+  "id": 61,
+  "fecha": "2026-09-24T17:05:12.000Z",
+  "tipo": "AJUSTE_NEGATIVO",
+  "cantidad": 5,
+  "stockResultante": 475,
+  "motivo": "Botellas rotas",
+  "referencia": null,
+  "usuario": { "id": 5, "nombre": "Jorge Alvarado Díaz" }
+}
+```
+`stockResultante` es el stock del producto inmediatamente después de ese movimiento. `referencia` puede ser `null`; en despachos y recepciones es el código (`PED-000123`, `OC-000010`).
+
+Objeto **ProductoInventario**:
+```json
+{ "id": 9, "codigo": "ACE-001", "nombre": "Aceite vegetal botella 1 L", "unidad": "UND", "stock": 498, "stockMinimo": 120, "enAlerta": false }
+```
+
+### `GET /inventario/kardex/:productoId` — ADMIN, GERENTE, ALMACENERO
+Query: `page`, `pageSize`, `desde`, `hasta` (`AAAA-MM-DD` en hora de Lima, `hasta` inclusive), `tipo` (`ENTRADA|SALIDA|AJUSTE_POSITIVO|AJUSTE_NEGATIVO`).
+
+`200`:
+```json
+{
+  "producto": { "id": 9, "codigo": "ACE-001", "nombre": "Aceite vegetal botella 1 L", "unidad": "UND", "stock": 498, "stockMinimo": 120, "enAlerta": false },
+  "resumen": { "entradas": 500, "salidas": 0, "ajustesPositivos": 3, "ajustesNegativos": 5, "saldoCalculado": 498, "cuadra": true },
+  "datos": [ Movimiento, … ],
+  "total": 4,
+  "page": 1,
+  "pageSize": 20
+}
+```
+- `datos`: movimientos que cumplen los filtros, **los más recientes primero**. Para mostrar el kardex en orden cronológico, invierta la página. El saldo de cada fila es `stockResultante`.
+- `total`/`page`/`pageSize` se refieren a los movimientos filtrados.
+- `resumen` se calcula siempre sobre **todos** los movimientos del producto, sin filtros ni paginación: `saldoCalculado = entradas + ajustesPositivos − salidas − ajustesNegativos`, y `cuadra = (saldoCalculado === producto.stock)`.
+
+Errores: `400` (id, fechas o `tipo` inválidos), `403` (VENDEDOR), `404` (producto inexistente).
+
+### `GET /inventario/alertas` — ADMIN, GERENTE, ALMACENERO
+Productos **activos** con `stock <= stockMinimo` (regla 18), del más crítico al menos crítico (`stock / stockMinimo` ascendente; empate por código). No está paginado.
+
+`200`:
+```json
+{
+  "datos": [
+    {
+      "id": 5, "codigo": "ARR-005", "nombre": "Frejol canario bolsa 1 kg", "unidad": "UND",
+      "stock": 18, "stockMinimo": 40, "enAlerta": true, "precio": "9.80",
+      "categoria": { "id": 1, "nombre": "Arroz y menestras" },
+      "cantidadSugerida": 62
+    }
+  ],
+  "total": 7
+}
+```
+`cantidadSugerida = stockMinimo × 2 − stock`. El VENDEDOR recibe `403`: para ver alertas usa `GET /productos?alerta=true`.
+
+### `POST /inventario/ajustes` — ADMIN, ALMACENERO
+```json
+{ "productoId": 9, "tipo": "AJUSTE_NEGATIVO", "cantidad": 5, "motivo": "Botellas rotas", "referencia": "ACTA-12" }
+```
+- `tipo`: `ENTRADA`, `AJUSTE_POSITIVO` o `AJUSTE_NEGATIVO` (`SALIDA` → 400).
+- `cantidad`: entero > 0.
+- `motivo`: obligatorio, de 5 a 200 caracteres (regla 10).
+- `referencia`: opcional, máximo 60 caracteres; `""` o `null` → sin referencia.
+- Se permite ajustar productos inactivos.
+
+`201`:
+```json
+{ "movimiento": Movimiento, "producto": ProductoInventario }
+```
+En la bitácora queda un registro `AJUSTE` (entidad `Producto`) con `antes: { stock }` y `despues: { stock, tipo, cantidad, motivo, referencia, movimientoId }`.
+
+Errores:
+- `400 VALIDACION`: `campos.productoId` («El producto no existe»), `campos.tipo`, `campos.cantidad`, `campos.motivo` («El motivo debe tener al menos 5 caracteres»).
+- `403`: GERENTE o VENDEDOR.
+- `409 STOCK_INSUFICIENTE` si un ajuste negativo dejaría el stock < 0. No cambia nada:
+  ```json
+  { "error": {
+      "codigo": "STOCK_INSUFICIENTE",
+      "mensaje": "Stock insuficiente para Frejol canario bolsa 1 kg (ARR-005): stock disponible 18, solicitado 19",
+      "campos": { "cantidad": "Stock disponible: 18" },
+      "productos": [ { "productoId": 5, "codigo": "ARR-005", "nombre": "Frejol canario bolsa 1 kg", "stockDisponible": 18, "solicitado": 19 } ]
+  } }
+  ```
+
+---
+
+## Órdenes de compra
+
+### Estados y transiciones
+
+```
+PENDIENTE ──aprobar──▶ APROBADA ──recepcionar──▶ RECIBIDA
+    │                     │
+    └──────anular─────────┴──▶ ANULADA
+```
+Cualquier otra transición → `422 TRANSICION_INVALIDA` con el mensaje `No se puede pasar de <ACTUAL> a <DESTINO>` (p. ej., `No se puede pasar de RECIBIDA a ANULADA`).
+
+| Acción | Quién | Estado de origen |
+|---|---|---|
+| Crear (`POST /ordenes-compra`) | ADMIN, GERENTE | — (nace PENDIENTE) |
+| Propuesta sugerida | ADMIN, GERENTE | — |
+| `aprobar` | **Solo GERENTE** (segregación: el ADMIN no aprueba) | PENDIENTE |
+| `recepcionar` | Solo ALMACENERO | APROBADA |
+| `anular` | GERENTE, ADMIN | PENDIENTE o APROBADA |
+
+**Visibilidad:** ADMIN y GERENTE ven todas las órdenes. El ALMACENERO solo ve las APROBADAS y RECIBIDAS; una PENDIENTE o ANULADA le da 403, también al intentar recepcionarla. El VENDEDOR no tiene acceso (403 en todo).
+
+Orden de validación: rol (403) → visibilidad (403) → máquina de estados (422). Los botones deben salir de `acciones` del detalle.
+
+### Objeto **OrdenFila** (lista)
+```json
+{
+  "id": 3,
+  "codigo": "OC-000003",
+  "fecha": "2026-09-24T18:00:00.000Z",
+  "estado": "PENDIENTE",
+  "proveedor": { "id": 1, "ruc": "20604812373", "razonSocial": "Agroindustrias Valle Moche S.A.C." },
+  "numLineas": 2,
+  "total": "56.50"
+}
+```
+`total` = Σ (`cantidad × costoUnit`), como string con 2 decimales.
+
+### Objeto **OrdenDetalle**
+```json
+{
+  "id": 3,
+  "codigo": "OC-000003",
+  "fecha": "2026-09-24T18:00:00.000Z",
+  "estado": "APROBADA",
+  "proveedor": { "id": 1, "ruc": "20604812373", "razonSocial": "Agroindustrias Valle Moche S.A.C.", "telefono": "044 481 237" },
+  "creadoPor": { "id": 2, "nombre": "Carlos Mendoza Ríos" },
+  "motivoAnulacion": null,
+  "total": "56.50",
+  "lineas": [
+    {
+      "id": 7,
+      "producto": { "id": 9, "codigo": "ACE-001", "nombre": "Aceite vegetal botella 1 L", "unidad": "UND", "stock": 480, "stockMinimo": 120 },
+      "cantidad": 3,
+      "costoUnit": "7.90",
+      "subtotal": "23.70"
+    }
+  ],
+  "historial": [
+    { "id": 120, "accion": "CREAR", "usuario": { "id": 2, "nombre": "Carlos Mendoza Ríos" }, "fecha": "2026-09-24T18:00:00.000Z", "antes": null,
+      "despues": { "codigo": "OC-000003", "estado": "PENDIENTE", "proveedor": { "id": 1, "razonSocial": "Agroindustrias Valle Moche S.A.C." }, "total": "56.50",
+                   "lineas": [ { "productoId": 9, "codigo": "ACE-001", "cantidad": 3, "costoUnit": "7.90" } ] } },
+    { "id": 121, "accion": "CAMBIO_ESTADO", "usuario": { "id": 2, "nombre": "Carlos Mendoza Ríos" }, "fecha": "2026-09-24T18:10:00.000Z",
+      "antes": { "estado": "PENDIENTE" }, "despues": { "estado": "APROBADA" } }
+  ],
+  "acciones": ["recepcionar"]
+}
+```
+- `producto.stock` es el stock **actual** del producto, no el del momento de la orden.
+- `creadoPor`: quien creó la orden. Se toma de la bitácora porque la tabla no guarda el creador; puede ser `null`.
+- `motivoAnulacion`: se toma del registro `ANULAR` de la bitácora (el esquema no tiene esa columna). Es `null` si la orden no está anulada.
+- `historial`: bitácora de la orden en orden cronológico. Formas de `despues`: `CREAR` (arriba); `CAMBIO_ESTADO` → `{ "estado": "APROBADA" }`; `RECEPCION` → `{ "estado": "RECIBIDA", "movimientos": [{ productoId, codigo, cantidad, stockResultante }] }`; `ANULAR` → `{ "estado": "ANULADA", "motivo": "…" }`. En los cambios, `antes` es `{ "estado": "<anterior>" }`.
+- `acciones`: subconjunto, en este orden, de `["aprobar", "recepcionar", "anular"]` que el usuario actual puede ejecutar ahora.
+
+### `GET /ordenes-compra` — ADMIN, GERENTE, ALMACENERO (según la visibilidad)
+Query: `page`, `pageSize`, `estado` (`PENDIENTE|APROBADA|RECIBIDA|ANULADA`), `proveedorId`, `desde`, `hasta` (`AAAA-MM-DD` en hora de Lima, `hasta` inclusive). Orden: las más recientes primero.
+`200`: `{ "datos": [OrdenFila, …], "total": 2, "page": 1, "pageSize": 20 }`
+
+### `GET /ordenes-compra/:id` — ADMIN, GERENTE, ALMACENERO (según la visibilidad)
+`200`: OrdenDetalle. `403` si no puede verla, `404` si no existe.
+
+### `POST /ordenes-compra/sugerida` — ADMIN, GERENTE
+Devuelve una **propuesta que no se guarda**: no crea la orden ni escribe en la bitácora. Sirve para precargar el formulario de nueva orden; el gerente elige el proveedor y puede editar cantidades y costos antes de crearla con `POST /ordenes-compra`.
+
+Cuerpo (todo opcional; también puede enviarse vacío):
+```json
+{ "proveedorId": 1, "productoIds": [5, 9] }
+```
+- Sin `productoIds`: incluye todos los productos activos en alerta (`stock <= stockMinimo`).
+- Con `productoIds`: incluye exactamente esos productos (activos), estén o no en alerta.
+- `cantidad = stockMinimo × 2 − stock` (regla 18), con un mínimo de 1 (un producto que no está en alerta daría ≤ 0).
+- `costoUnit` = **80 % del precio de venta**, redondeado a 2 decimales. Es un **supuesto del demo**, confirmado por el usuario: no hay costos de compra reales, así que el costo se estima y el gerente puede editarlo. La respuesta lo indica en `supuestoCosto`, y el README debe decirlo.
+
+`200`:
+```json
+{
+  "proveedor": { "id": 1, "ruc": "20604812373", "razonSocial": "Agroindustrias Valle Moche S.A.C." },
+  "supuestoCosto": "Costo unitario = 80 % del precio de venta (supuesto del demo; editable)",
+  "lineas": [
+    {
+      "producto": { "id": 5, "codigo": "ARR-005", "nombre": "Frejol canario bolsa 1 kg", "unidad": "UND", "stock": 18, "stockMinimo": 40, "precio": "9.80" },
+      "cantidad": 62,
+      "costoUnit": "7.84",
+      "subtotal": "486.08"
+    }
+  ],
+  "total": "486.08"
+}
+```
+`proveedor` es `null` si no se envió `proveedorId`. Las `lineas` van ordenadas por código de producto y pueden estar vacías si no hay alertas.
+Errores: `400` (`campos.proveedorId` «El proveedor no existe»; `campos.productoIds` «Productos inexistentes o inactivos: …»), `403`.
+
+### `POST /ordenes-compra` — ADMIN, GERENTE
+```json
+{ "proveedorId": 1, "lineas": [ { "productoId": 5, "cantidad": 62, "costoUnit": "7.84" }, { "productoId": 9, "cantidad": 10, "costoUnit": 7.9 } ] }
+```
+- De 1 a 60 líneas, sin repetir producto; los productos deben estar activos.
+- `cantidad`: entero > 0. `costoUnit`: > 0 con máximo 2 decimales (acepta número o string).
+- La orden nace **PENDIENTE**.
+
+`201`: OrdenDetalle. En la bitácora queda un `CREAR`.
+Errores: `400 VALIDACION` (`campos.proveedorId` «El proveedor no existe»; `campos.lineas` «La orden debe tener al menos una línea» / «No repita el mismo producto en dos líneas»; `campos["lineas.<i>.cantidad"]`, `campos["lineas.<i>.costoUnit"]`, `campos["lineas.<i>.productoId"]` «El producto no existe o está inactivo»), `403`.
+
+### `POST /ordenes-compra/:id/aprobar` — GERENTE
+Sin cuerpo. PENDIENTE → APROBADA. `200`: OrdenDetalle. En la bitácora queda un `CAMBIO_ESTADO`. Errores: `403` (incluido el ADMIN), `404`, `422`.
+
+### `POST /ordenes-compra/:id/recepcionar` — ALMACENERO
+Sin cuerpo. APROBADA → RECIBIDA (regla 9), todo en una sola transacción:
+- suma la cantidad de cada línea al stock del producto;
+- crea un movimiento `ENTRADA` por línea (motivo `Recepción OC-000003`, referencia `OC-000003`, con `stockResultante`);
+- deja en la bitácora un registro `RECEPCION` con los movimientos.
+
+Dos recepciones simultáneas de la misma orden solo suman una vez: la segunda recibe `422`.
+`200`: OrdenDetalle. Errores: `403`, `404`, `422`.
+
+### `POST /ordenes-compra/:id/anular` — GERENTE, ADMIN
+```json
+{ "motivo": "Proveedor sin stock disponible" }
+```
+`motivo`: de 10 a 300 caracteres. Solo desde PENDIENTE o APROBADA. `200`: OrdenDetalle con `estado: "ANULADA"` y `motivoAnulacion`. En la bitácora queda un `ANULAR` con el motivo.
+Errores: `400` (`campos.motivo`), `403`, `404`, `422`.
 
 ---
 

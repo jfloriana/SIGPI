@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fechaQuerySchema, refinarRangoFechas } from "../../utils/fechas.ts";
 import { paginacionSchema } from "../../utils/paginacion.ts";
 import { buscarQuery, enteroPositivoSchema } from "../../utils/validadores.ts";
 
@@ -35,26 +36,17 @@ export const crearPedidoSchema = z.object({
     }),
 });
 
-const fechaQuery = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Use el formato AAAA-MM-DD" })
-  .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), { error: "Fecha no válida" })
-  .optional();
-
 export const listarPedidosSchema = paginacionSchema
   .extend({
     estado: z.enum(ESTADOS_PEDIDO, { error: `El estado debe ser uno de: ${ESTADOS_PEDIDO.join(", ")}` }).optional(),
-    desde: fechaQuery,
-    hasta: fechaQuery,
+    desde: fechaQuerySchema,
+    hasta: fechaQuerySchema,
     vendedorId: z.coerce.number({ error: "Vendedor no válido" }).int().positive({ error: "Vendedor no válido" }).optional(),
     clienteId: z.coerce.number({ error: "Cliente no válido" }).int().positive({ error: "Cliente no válido" }).optional(),
     buscar: buscarQuery,
     orden: z.enum(["recientes", "antiguedad"], { error: 'Use "recientes" o "antiguedad"' }).default("recientes"),
   })
-  .refine((q) => !q.desde || !q.hasta || q.desde <= q.hasta, {
-    path: ["hasta"],
-    error: "La fecha final no puede ser anterior a la inicial",
-  });
+  .superRefine(refinarRangoFechas);
 
 export const anularSchema = z.object({
   motivo: z
