@@ -53,7 +53,7 @@ export function Tabla<T>({
   if (!filas || filas.length === 0) return <EstadoVacio {...vacio} />;
 
   return (
-    <div className="-mx-px overflow-x-auto">
+    <div className="relative -mx-px overflow-x-auto">
       <table className="w-full min-w-max border-collapse text-sm">
         <caption className="sr-only">{descripcion}</caption>
         <thead>
