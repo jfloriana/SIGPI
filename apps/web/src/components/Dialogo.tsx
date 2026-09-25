@@ -30,7 +30,7 @@ export function Dialogo({ abierto, alCerrar, titulo, descripcion, children, pie,
   const maxW = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" }[ancho];
   const forma =
     variante === "panel"
-      ? `my-0 mr-0 ml-auto flex h-dvh max-h-dvh w-full ${maxW} flex-col rounded-none open:animate-[deslizar_220ms_var(--ease-salida)]`
+      ? `my-0 mr-0 ml-auto h-dvh max-h-dvh w-full ${maxW} flex-col rounded-none open:animate-[deslizar_220ms_var(--ease-salida)]`
       : `m-auto w-[calc(100%-2rem)] ${maxW} rounded-xl open:animate-[aparecer_200ms_var(--ease-salida)]`;
 
   return (

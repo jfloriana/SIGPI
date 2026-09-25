@@ -10,3 +10,4 @@ apps/e2e/.auth/
 coverage/
 *.log
 .impeccable/hook.cache.json
+apps/web/.impeccable/review/

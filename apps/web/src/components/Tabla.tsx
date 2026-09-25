@@ -85,7 +85,7 @@ export function Tabla<T>({
                 {columnas.map((c) => (
                   <td
                     key={c.titulo}
-                    className={`px-4 py-3 align-middle ${ALINEAR[c.alinear ?? "izquierda"]} ${
+                    className={`relative px-4 py-3 align-middle ${ALINEAR[c.alinear ?? "izquierda"]} ${
                       c.ocultarEnMovil ? "hidden md:table-cell" : ""
                     } ${c.className ?? ""}`}
                   >
