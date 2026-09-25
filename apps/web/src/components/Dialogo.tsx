@@ -36,7 +36,8 @@ export function Dialogo({ abierto, alCerrar, titulo, descripcion, children, pie,
   return (
     <dialog
       ref={ref}
-      onClose={alCerrar}
+      // React propaga «close» por el árbol de componentes: solo reacciona al cierre de ESTE diálogo.
+      onClose={(e) => e.target === e.currentTarget && alCerrar()}
       onClick={(e) => e.target === e.currentTarget && alCerrar()}
       aria-labelledby={idTitulo}
       aria-describedby={descripcion ? idDesc : undefined}
