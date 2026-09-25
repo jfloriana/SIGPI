@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { config } from "./config.ts";
 import { errorHandler, rutaNoEncontrada } from "./middlewares/errorHandler.ts";
 import { authRouter } from "./modules/auth/routes.ts";
+import { bitacoraRouter } from "./modules/bitacora/routes.ts";
 import { categoriasRouter } from "./modules/categorias/routes.ts";
 import { clientesRouter } from "./modules/clientes/routes.ts";
 import { ordenesCompraRouter } from "./modules/compras/routes.ts";
@@ -11,6 +12,7 @@ import { inventarioRouter } from "./modules/inventario/routes.ts";
 import { pedidosRouter } from "./modules/pedidos/routes.ts";
 import { productosRouter } from "./modules/productos/routes.ts";
 import { proveedoresRouter } from "./modules/proveedores/routes.ts";
+import { reportesRouter } from "./modules/reportes/routes.ts";
 import { usuariosRouter } from "./modules/usuarios/routes.ts";
 
 export function crearApp() {
@@ -34,6 +36,8 @@ export function crearApp() {
   api.use("/pedidos", pedidosRouter);
   api.use("/inventario", inventarioRouter);
   api.use("/ordenes-compra", ordenesCompraRouter);
+  api.use("/reportes", reportesRouter);
+  api.use("/bitacora", bitacoraRouter);
   app.use("/api", api);
 
   app.use(rutaNoEncontrada);

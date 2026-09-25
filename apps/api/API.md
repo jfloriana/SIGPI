@@ -1,4 +1,4 @@
-# API de SIGPI – contrato (Fases 1 a 4)
+# API de SIGPI – contrato (Fases 1 a 5)
 
 Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
 
@@ -95,6 +95,9 @@ Base: `http://localhost:3000/api`. Cuerpos y respuestas en JSON (UTF-8).
 | `POST /ordenes-compra/:id/aprobar` | 403 | ✔ | 403 | 403 |
 | `POST /ordenes-compra/:id/recepcionar` | 403 | 403 | 403 | ✔ |
 | `POST /ordenes-compra/:id/anular` | ✔ | ✔ | 403 | 403 |
+| `GET /reportes/tablero` | ✔ (TOTAL) | ✔ (TOTAL) | ✔ (PROPIO) | ✔ (STOCK) |
+| `GET /reportes/ventas.csv` | ✔ | ✔ | ✔ (solo lo suyo) | 403 |
+| `GET /bitacora`, `/bitacora/filtros`, `/bitacora/:id` | ✔ | ✔ | 403 | 403 |
 
 ---
 
@@ -720,6 +723,155 @@ Dos recepciones simultáneas de la misma orden solo suman una vez: la segunda re
 ```
 `motivo`: de 10 a 300 caracteres. Solo desde PENDIENTE o APROBADA. `200`: OrdenDetalle con `estado: "ANULADA"` y `motivoAnulacion`. En la bitácora queda un `ANULAR` con el motivo.
 Errores: `400` (`campos.motivo`), `403`, `404`, `422`.
+
+---
+
+## Reportes
+
+### Qué cuenta como venta
+- Solo los pedidos en estado **DESPACHADO** o **ENTREGADO** cuentan como venta.
+- La **fecha de la venta es `fechaDespacho`**, no la de registro: la mercadería sale del almacén al despachar. Un pedido registrado el día 1 y despachado el día 3 suma al día 3.
+- Los ANULADOS, REGISTRADOS y APROBADOS no suman ventas.
+- Excepción: `pedidosPorEstado` cuenta **todos** los pedidos por su fecha de **registro**.
+
+### Período (`desde`, `hasta`)
+- Fechas `AAAA-MM-DD` en hora de Lima, ambas inclusive.
+- **Por defecto: los últimos 30 días incluyendo hoy** (`desde = hoy − 29`).
+- Con solo `desde`: hasta hoy. Con solo `hasta`: los 30 días que terminan ese día.
+- Máximo 366 días (si se excede → `400`, `campos.desde`). `hasta` anterior a `desde` → `400` (`campos.hasta`). Otro formato → `400`.
+
+### Alcance por rol (decisión confirmada)
+
+| Rol | `alcance` | Qué incluye |
+|---|---|---|
+| ADMIN, GERENTE | `TOTAL` | Todo. |
+| VENDEDOR | `PROPIO` | Todas las métricas filtradas a **sus** pedidos. `ventasPorVendedor` contiene solo a él (aunque tenga 0). `productosEnAlerta` va vacío. |
+| ALMACENERO | `STOCK` | Solo `productosEnAlerta` (completo). `ventasTotales`, `numPedidos` y `ticketPromedio` son `null`; las demás listas van vacías. |
+
+### `GET /reportes/tablero` — todos los roles (según el alcance)
+Query: `desde`, `hasta`.
+
+`200` (alcance `TOTAL`; listas abreviadas):
+```json
+{
+  "alcance": "TOTAL",
+  "periodo": { "desde": "2026-08-27", "hasta": "2026-09-25" },
+  "ventasTotales": "551.00",
+  "numPedidos": 3,
+  "ticketPromedio": "183.67",
+  "pedidosPorEstado": [
+    { "estado": "REGISTRADO", "cantidad": 1 },
+    { "estado": "APROBADO", "cantidad": 1 },
+    { "estado": "DESPACHADO", "cantidad": 2 },
+    { "estado": "ENTREGADO", "cantidad": 1 },
+    { "estado": "ANULADO", "cantidad": 0 }
+  ],
+  "ventasPorDia": [
+    { "fecha": "2026-08-27", "total": "0.00", "pedidos": 0 },
+    { "fecha": "2026-09-25", "total": "181.00", "pedidos": 2 }
+  ],
+  "top10Productos": [
+    { "productoId": 1, "codigo": "ARR-001", "nombre": "Arroz extra superior saco 50 kg", "cantidad": 2, "total": "370.00" }
+  ],
+  "ventasPorVendedor": [
+    { "vendedorId": 4, "nombre": "Ana Villanueva Soto", "total": "370.00", "pedidos": 1 },
+    { "vendedorId": 3, "nombre": "Luis Paredes Castillo", "total": "181.00", "pedidos": 2 }
+  ],
+  "ventasPorZona": [
+    { "zona": "Centro", "total": "551.00", "pedidos": 3 },
+    { "zona": "Norte", "total": "0.00", "pedidos": 0 }
+  ],
+  "productosEnAlerta": [
+    { "id": 5, "codigo": "ARR-005", "nombre": "Frejol canario bolsa 1 kg", "stock": 18, "stockMinimo": 40, "cantidadSugerida": 62 }
+  ]
+}
+```
+- Todos los montos son **strings con 2 decimales** y se calculan con `Decimal`.
+- `ventasTotales`: suma de `total` de las ventas del período. `numPedidos`: número de ventas.
+- `ticketPromedio = ventasTotales / numPedidos`, redondeado a 2 decimales; `"0.00"` si no hay ventas.
+- `pedidosPorEstado`: siempre los 5 estados, en el orden del flujo, con 0 si no hay pedidos.
+- `ventasPorDia`: **un elemento por cada día del período**, en orden ascendente y con ceros los días sin ventas (listo para el gráfico de líneas).
+- `top10Productos`: hasta 10 productos, ordenados por **monto vendido** (`total`) descendente; empates por cantidad y luego por código. `cantidad` son las unidades vendidas.
+- `ventasPorVendedor`: solo vendedores con ventas en el período, de mayor a menor monto (en alcance `PROPIO`, solo él).
+- `ventasPorZona`: siempre las 6 zonas, de mayor a menor monto (empates en el orden del catálogo).
+- `productosEnAlerta`: igual que `GET /inventario/alertas`, del más crítico al menos crítico, con `cantidadSugerida = stockMinimo × 2 − stock`.
+
+Errores: `400` (período inválido), `401`.
+
+### `GET /reportes/ventas.csv` — ADMIN, GERENTE, VENDEDOR (el vendedor, solo lo suyo)
+Query: `desde`, `hasta` (mismas reglas y valores por defecto que el tablero). ALMACENERO → `403`.
+
+Respuesta `200`:
+- `Content-Type: text/csv; charset=utf-8`
+- `Content-Disposition: attachment; filename="ventas_2026-08-27_2026-09-25.csv"` (usa las fechas del período ya resuelto).
+- Formato para Excel en español: empieza con BOM UTF-8 (`EF BB BF`), separador `;`, fin de línea `CRLF`, y el archivo termina en `CRLF`.
+- Una fila por venta (DESPACHADO o ENTREGADO), ordenadas por fecha de despacho ascendente.
+
+```
+Código;Fecha despacho;Cliente;Documento;Zona;Vendedor;Condición;Estado;Total
+PED-000001;2026-09-25 10:42;Minimarket San Martín S.A.C.;RUC 20632214287;Centro;Luis Paredes Castillo;CONTADO;DESPACHADO;99.00
+```
+- `Fecha despacho`: `AAAA-MM-DD HH:mm` en hora de Lima.
+- `Documento`: `<tipoDoc> <numDoc>`.
+- `Total`: punto decimal y 2 decimales, sin separador de miles.
+- Escape: un campo que contiene `;`, `"` o un salto de línea va entre comillas y sus comillas se duplican.
+- Protección contra inyección de fórmulas: un texto que empieza con `=`, `+`, `-`, `@`, tabulador o retorno de carro se antepone con `'`. Ejemplo: la razón social `=Bodega "La; Unión"` sale como `"'=Bodega ""La; Unión"""`.
+
+Para descargar desde el frontend: `fetch` con el header `Authorization`, luego `blob()` y un enlace temporal. Un `<a href>` directo no envía el token.
+
+---
+
+## Bitácora (solo lectura)
+
+La bitácora **no se puede crear, editar ni borrar por la API** (regla 17). Los registros los crea el servidor dentro de la transacción de cada operación. `POST`, `PUT`, `PATCH` y `DELETE` sobre `/bitacora` o `/bitacora/:id` responden `404 RUTA_NO_ENCONTRADA` (para ADMIN y GERENTE; los demás roles reciben 403 antes).
+
+Objeto **RegistroBitacora**:
+```json
+{
+  "id": 42,
+  "fecha": "2026-09-25T15:02:11.000Z",
+  "usuario": { "id": 5, "nombre": "Jorge Alvarado Díaz", "email": "almacen@distrinorte.pe" },
+  "accion": "AJUSTE",
+  "entidad": "Producto",
+  "entidadId": "9",
+  "detalle": {
+    "antes": { "stock": 480 },
+    "despues": { "stock": 482, "tipo": "AJUSTE_POSITIVO", "cantidad": 2, "motivo": "Sobrante en conteo", "referencia": null, "movimientoId": 61 }
+  },
+  "ip": "::ffff:127.0.0.1"
+}
+```
+- `usuario` es `null` en los registros de la carga inicial y en los `LOGIN_FALLIDO` con un correo inexistente.
+- `entidadId` es **string** (o `null`).
+- `detalle` ya viene parseado: `{ antes, despues }`. Cualquiera de los dos puede ser `null` (p. ej., `antes` en un CREAR). Nunca contiene contraseñas ni hashes.
+- `ip` puede ser `null`.
+- Valores de `accion`: `LOGIN_OK`, `LOGIN_FALLIDO`, `CREAR`, `EDITAR`, `DESACTIVAR`, `CAMBIO_ESTADO`, `ANULAR`, `AJUSTE`, `RECEPCION`.
+- Valores de `entidad` en uso: `Usuario`, `Cliente`, `Categoria`, `Producto`, `Proveedor`, `Pedido`, `OrdenCompra`.
+
+### `GET /bitacora` — ADMIN, GERENTE
+Query:
+- `page`, `pageSize`
+- `usuarioId` (número)
+- `entidad` (texto exacto, p. ej. `Pedido`)
+- `entidadId` (texto exacto, p. ej. `12`)
+- `accion` (uno de los valores anteriores; otro → 400)
+- `desde`, `hasta` (`AAAA-MM-DD` en hora de Lima, `hasta` inclusive)
+
+Orden: los más recientes primero.
+`200`: `{ "datos": [RegistroBitacora, …], "total": 9, "page": 1, "pageSize": 20 }`
+
+> Historial de un registro concreto: `?entidad=Pedido&entidadId=12`. El detalle de pedidos y de órdenes de compra ya trae su `historial`.
+
+### `GET /bitacora/filtros` — ADMIN, GERENTE
+Valores distintos presentes en la bitácora, ordenados alfabéticamente, para los desplegables:
+```json
+{ "entidades": ["Cliente", "Producto", "Usuario"], "acciones": ["AJUSTE", "CREAR", "EDITAR", "LOGIN_FALLIDO", "LOGIN_OK"] }
+```
+
+### `GET /bitacora/:id` — ADMIN, GERENTE
+`200`: RegistroBitacora. `404` si no existe, `400` si el id no es numérico.
+
+VENDEDOR y ALMACENERO → `403` en todas las rutas de bitácora.
 
 ---
 
