@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/*
+ * Sistema visual de SIGPI.
+ * Paleta institucional: marino (principal), verde azulado (acciones/éxito),
+ * ámbar (alertas) y coral (errores/anulaciones). Los tonos -700/-800 se usan
+ * para texto y para botones con texto blanco (contraste ≥ 4.5:1).
+ */
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --color-marino-50: #eef2f7;
+  --color-marino-100: #d9e2ed;
+  --color-marino-200: #b3c4d9;
+  --color-marino-500: #3d5f8a;
+  --color-marino-600: #2a4a72;
+  --color-marino: #1f3a5f;
+  --color-marino-800: #172c48;
+  --color-marino-900: #0f1e33;
+
+  --color-teal-50: #e8f6f4;
+  --color-teal-100: #c9ebe6;
+  --color-teal: #2a9d8f;
+  --color-teal-700: #1f7469;
+  --color-teal-800: #185c53;
+
+  --color-ambar-50: #fdf4e3;
+  --color-ambar-100: #fae4bb;
+  --color-ambar: #e9a23b;
+  --color-ambar-800: #7d5210;
+
+  --color-coral-50: #fbede8;
+  --color-coral-100: #f5d3c7;
+  --color-coral: #d1603d;
+  --color-coral-700: #a8452a;
+  --color-coral-800: #8a3820;
+
+  --radius-control: 0.5rem;
+  --ease-salida: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-white font-sans text-slate-900 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-marino-500;
+  }
+  button,
+  [role="button"],
+  a,
+  select,
+  summary {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* Componentes reutilizables (en Tailwind 4 se declaran como @utility para poder combinarlos). */
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-sm font-semibold transition-colors duration-150 disabled:opacity-60;
+}
+@utility btn-primario {
+  @apply btn bg-teal-700 text-white hover:bg-teal-800;
+}
+@utility btn-secundario {
+  @apply btn border border-slate-300 bg-white text-slate-800 hover:bg-slate-50;
+}
+@utility btn-peligro {
+  @apply btn bg-coral-700 text-white hover:bg-coral-800;
+}
+@utility campo-etiqueta {
+  @apply mb-1.5 block text-sm font-medium text-slate-800;
+}
+@utility campo-control {
+  @apply block min-h-11 w-full rounded-[var(--radius-control)] border border-slate-300 bg-white px-3 text-base text-slate-900 transition-colors duration-150 placeholder:text-slate-500 hover:border-slate-400 focus:border-marino-500 focus:outline-none focus:ring-2 focus:ring-marino-100 aria-invalid:border-coral-700 aria-invalid:ring-coral-100 sm:text-sm;
+}
+@utility campo-error {
+  @apply mt-1.5 text-sm text-coral-700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes entrar {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

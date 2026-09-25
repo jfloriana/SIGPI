@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "apps/web/src/index.css"
+        ],
+        "createdAt": "2026-09-24T23:28:08.480Z",
+        "reason": "agent: L73 is .btn-secundario, slate-800 text on white/slate-50 neutral background, not a colored surface"
+      }
+    ]
+  }
+}

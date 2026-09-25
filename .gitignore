@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+apps/api/src/generated/
+apps/e2e/test-results/
+apps/e2e/playwright-report/
+apps/e2e/.auth/
+coverage/
+*.log
+.impeccable/hook.cache.json

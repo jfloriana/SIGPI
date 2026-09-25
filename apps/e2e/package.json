@@ -1,0 +1,11 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Pruebas E2E: se configuran en la Fase 7\""
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

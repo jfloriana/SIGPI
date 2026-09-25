@@ -1,0 +1,153 @@
+// SIGPI – Modelo de datos (capa de datos).
+// Para cambiar a PostgreSQL (Supabase) basta con cambiar `provider` a "postgresql"
+// y las variables DATABASE_URL / DIRECT_URL del archivo .env (ver README).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Rol {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique
+  usuarios Usuario[]
+}
+
+model Usuario {
+  id               Int             @id @default(autoincrement())
+  nombre           String
+  email            String          @unique
+  hashClave        String
+  rolId            Int
+  rol              Rol             @relation(fields: [rolId], references: [id])
+  activo           Boolean         @default(true)
+  intentosFallidos Int             @default(0)
+  bloqueadoHasta   DateTime?
+  creadoEn         DateTime        @default(now())
+  pedidos          Pedido[]
+  movimientos      MovInventario[]
+  bitacora         Bitacora[]
+}
+
+model Cliente {
+  id          Int      @id @default(autoincrement())
+  tipoDoc     String // "RUC" | "DNI"
+  numDoc      String   @unique // RUC 11 dígitos, DNI 8 dígitos
+  razonSocial String
+  direccion   String
+  telefono    String?
+  zona        String // "Centro" | "Norte" | "Sur" | "La Esperanza" | "El Porvenir" | "Víctor Larco"
+  activo      Boolean  @default(true)
+  pedidos     Pedido[]
+}
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  productos Producto[]
+}
+
+model Producto {
+  id          Int                  @id @default(autoincrement())
+  codigo      String               @unique
+  nombre      String
+  unidad      String // "UND" | "CAJA" | "SACO" | "PAQ"
+  precio      Decimal
+  stock       Int                  @default(0)
+  stockMinimo Int                  @default(0)
+  categoriaId Int
+  categoria   Categoria            @relation(fields: [categoriaId], references: [id])
+  activo      Boolean              @default(true)
+  detalles    DetallePedido[]
+  movimientos MovInventario[]
+  detallesOC  DetalleOrdenCompra[]
+}
+
+model Pedido {
+  id               Int             @id @default(autoincrement())
+  codigo           String          @unique // PED-000001
+  clienteId        Int
+  cliente          Cliente         @relation(fields: [clienteId], references: [id])
+  vendedorId       Int
+  vendedor         Usuario         @relation(fields: [vendedorId], references: [id])
+  fecha            DateTime        @default(now())
+  estado           String          @default("REGISTRADO") // REGISTRADO | APROBADO | DESPACHADO | ENTREGADO | ANULADO
+  condicionPago    String // CONTADO | CREDITO
+  total            Decimal
+  motivoAnulacion  String?
+  aprobadoPorId    Int?
+  despachadoPorId  Int?
+  fechaAprobacion  DateTime?
+  fechaDespacho    DateTime?
+  fechaEntrega     DateTime?
+  detalles         DetallePedido[]
+}
+
+model DetallePedido {
+  id         Int      @id @default(autoincrement())
+  pedidoId   Int
+  pedido     Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id])
+  cantidad   Int
+  precioUnit Decimal
+  subtotal   Decimal
+}
+
+model MovInventario {
+  id              Int      @id @default(autoincrement())
+  productoId      Int
+  producto        Producto @relation(fields: [productoId], references: [id])
+  tipo            String // ENTRADA | SALIDA | AJUSTE_POSITIVO | AJUSTE_NEGATIVO
+  cantidad        Int
+  stockResultante Int
+  motivo          String // "Despacho PED-000123", "Recepción OC-000010", "Merma", etc.
+  referencia      String?
+  usuarioId       Int
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+  fecha           DateTime @default(now())
+}
+
+model Proveedor {
+  id          Int           @id @default(autoincrement())
+  ruc         String        @unique
+  razonSocial String
+  telefono    String?
+  ordenes     OrdenCompra[]
+}
+
+model OrdenCompra {
+  id          Int                  @id @default(autoincrement())
+  codigo      String               @unique // OC-000001
+  proveedorId Int
+  proveedor   Proveedor            @relation(fields: [proveedorId], references: [id])
+  estado      String               @default("PENDIENTE") // PENDIENTE | APROBADA | RECIBIDA | ANULADA
+  fecha       DateTime             @default(now())
+  detalles    DetalleOrdenCompra[]
+}
+
+model DetalleOrdenCompra {
+  id         Int         @id @default(autoincrement())
+  ordenId    Int
+  orden      OrdenCompra @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  productoId Int
+  producto   Producto    @relation(fields: [productoId], references: [id])
+  cantidad   Int
+  costoUnit  Decimal
+}
+
+model Bitacora {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  accion    String // LOGIN_OK | LOGIN_FALLIDO | CREAR | EDITAR | DESACTIVAR | CAMBIO_ESTADO | ANULAR | AJUSTE | RECEPCION
+  entidad   String // "Pedido", "Producto", ...
+  entidadId String?
+  detalle   String // JSON con valores antes/después
+  ip        String?
+  fecha     DateTime @default(now())
+}
