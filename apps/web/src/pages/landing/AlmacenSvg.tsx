@@ -105,6 +105,9 @@ function prismas(): Prisma[] {
   return [...base, ...lista];
 }
 
+/** Ancho aproximado (en unidades del SVG) de una etiqueta con texto de 0.66 unidades. */
+const anchoAviso = (texto: string) => texto.length * 0.36 + 1.1;
+
 export function AlmacenSvg({ className = "" }: { className?: string }) {
   const { poligonos, rotulos, avisos, caja } = useMemo(() => {
     const paleta = leerPaleta();
@@ -137,17 +140,25 @@ export function AlmacenSvg({ className = "" }: { className?: string }) {
       return { codigo: c.codigo, x, y, alerta: c.codigo === "ACE" };
     });
     const ace = CATEGORIAS.find((c) => c.codigo === "ACE")!;
-    const [ax, ay] = proyectar(ace.x, ESTANTE.alto + 1.9, ace.z);
+    const cajaAlerta = ubicarProductos(ace).find((p) => p.alerta)!;
+    // La línea guía nace en la caja de ACE-003; la etiqueta sube a la derecha, libre de los rótulos AZU y LAC.
+    const [gx, gy] = proyectar(cajaAlerta.x, cajaAlerta.y + TAMANO_CAJA[cajaAlerta.unidad][1] / 2, cajaAlerta.z);
+    const textoAlerta = `${PRODUCTO_ALERTA.nombre} · stock ${PRODUCTO_ALERTA.stock} ≤ mínimo ${PRODUCTO_ALERTA.minimo}`;
+    const azu = rotulos.find((r) => r.codigo === "AZU")!;
+    const lac = rotulos.find((r) => r.codigo === "LAC")!;
+    const ax = Math.max(gx + 2, azu.x + 1.3 + anchoAviso(textoAlerta) / 2);
+    const ay = lac.y - 1.0;
     const [px, py] = proyectar(11.4, 2.6, 4.3);
     const avisos = [
       {
-        texto: `${PRODUCTO_ALERTA.nombre} · stock ${PRODUCTO_ALERTA.stock} ≤ mínimo ${PRODUCTO_ALERTA.minimo}`,
+        texto: textoAlerta,
         x: ax,
         y: ay,
+        guia: [gx - ax, gy - ay] as [number, number] | null,
         fondo: "fill-ambar-50 stroke-ambar-100",
         letra: "fill-ambar-800",
       },
-      { texto: `${PEDIDO_DEMO} · DESPACHADO`, x: px, y: py, fondo: "fill-teal-700", letra: "fill-white" },
+      { texto: `${PEDIDO_DEMO} · DESPACHADO`, x: px, y: py, guia: null, fondo: "fill-teal-700", letra: "fill-white" },
     ];
     minY = Math.min(minY, ay - 1.8);
     const m = 0.6;
@@ -168,9 +179,15 @@ export function AlmacenSvg({ className = "" }: { className?: string }) {
         </g>
       ))}
       {avisos.map((a) => {
-        const ancho = a.texto.length * 0.36 + 1.1;
+        const ancho = anchoAviso(a.texto);
         return (
           <g key={a.texto} transform={`translate(${a.x.toFixed(2)} ${a.y.toFixed(2)})`}>
+            {a.guia && (
+              <>
+                <line x1={0} y1={-0.2} x2={a.guia[0]} y2={a.guia[1]} strokeWidth={0.07} className="stroke-marino-900" />
+                <circle cx={a.guia[0]} cy={a.guia[1]} r={0.14} className="fill-marino-900" />
+              </>
+            )}
             <rect x={-ancho / 2} y={-1.45} width={ancho} height={1.25} rx={0.25} strokeWidth={0.06} className={a.fondo} />
             <text y={-0.6} textAnchor="middle" fontSize={0.66} fontWeight={600} className={a.letra}>
               {a.texto}

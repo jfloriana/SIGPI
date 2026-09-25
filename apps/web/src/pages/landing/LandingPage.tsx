@@ -48,6 +48,9 @@ const ETIQUETAS: DefEtiqueta[] = [
     estaciones: [0, 3],
     tono: "alerta",
     texto: `${PRODUCTO_ALERTA.nombre} · stock ${PRODUCTO_ALERTA.stock} ≤ mínimo ${PRODUCTO_ALERTA.minimo}`,
+    // A la derecha y arriba de la caja en alerta, para no tapar los rótulos LAC y ACE.
+    desfase: [180, -80],
+    desfaseMovil: [0, -40],
   },
   { ancla: "pedido", estaciones: [0, 2], tono: "pedido", texto: `${PEDIDO_DEMO} · DESPACHADO` },
   {
@@ -57,8 +60,8 @@ const ETIQUETAS: DefEtiqueta[] = [
     texto: "REGISTRADO · a crédito, espera al gerente",
     desfaseMovil: [-24, -8],
   },
-  { ancla: "aprobado", estaciones: [1], tono: "info", texto: "APROBADO por el gerente", desfaseMovil: [-110, 20] },
-  { ancla: "anulado", estaciones: [1], tono: "anulado", texto: "ANULADO · con motivo", desfase: [70, 0], desfaseMovil: [40, 80] },
+  { ancla: "aprobado", estaciones: [1], tono: "info", texto: "APROBADO por el gerente", desfaseMovil: [-60, 40] },
+  { ancla: "anulado", estaciones: [1], tono: "anulado", texto: "ANULADO · con motivo", desfase: [70, 0], desfaseMovil: [60, 44] },
   { ancla: "salida", estaciones: [2], tono: "info", texto: "Una SALIDA en el kardex por cada línea" },
   {
     ancla: "recepcion",
@@ -190,11 +193,14 @@ export default function LandingPage() {
                   }}
                   className="landing-etiqueta"
                 >
-                  <div className={`relative whitespace-nowrap ${ESTILO_TONO[d.tono]} ${d.soloAncho ? "max-md:hidden" : ""}`}>{d.texto}</div>
+                  <span data-guia className={`landing-guia ${d.soloAncho ? "max-md:hidden" : ""}`} />
+                  <div data-chip className={`relative whitespace-nowrap ${ESTILO_TONO[d.tono]} ${d.soloAncho ? "max-md:hidden" : ""}`}>
+                    {d.texto}
+                  </div>
                 </div>
               ))}
               <div ref={globo} className="landing-etiqueta">
-                <div className="relative rounded-lg bg-marino-900 px-3 py-2 text-white shadow-lg shadow-marino-900/25">
+                <div data-chip className="relative rounded-lg bg-marino-900 px-3 py-2 text-white shadow-lg shadow-marino-900/25">
                   <p data-nombre className="text-sm font-semibold whitespace-nowrap" />
                   <p data-detalle className="text-xs whitespace-nowrap text-marino-100" />
                 </div>

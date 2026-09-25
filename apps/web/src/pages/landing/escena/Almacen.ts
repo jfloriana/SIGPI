@@ -400,8 +400,11 @@ export class Almacen {
     }
     const ace = CATEGORIAS.find((k) => k.codigo === "ACE")!;
     switch (id) {
-      case "alerta":
-        return destino.set(ace.x, ESTANTE.alto + 1.6, ace.z);
+      case "alerta": {
+        // Sobre la caja de ACE-003 (el producto en alerta, en el nivel superior del estante).
+        const caja = ubicarProductos(ace).find((p) => p.alerta)!;
+        return destino.set(caja.x, caja.y + TAMANO_CAJA[caja.unidad][1] / 2 + 0.05, caja.z);
+      }
       case "pedido":
         return this.pedido.visible
           ? destino.copy(this.pedido.position).setY(this.pedido.position.y + 1.25)
@@ -409,9 +412,9 @@ export class Almacen {
       case "escritorio":
         return destino.set(ZONAS.escritorio.x, 1.9, ZONAS.escritorio.z);
       case "aprobado":
-        return destino.set(ZONAS.aprobado.x, 1.35, ZONAS.aprobado.z);
+        return destino.set(ZONAS.aprobado.x, 1.05, ZONAS.aprobado.z);
       case "anulado":
-        return destino.set(ZONAS.anulado.x, 1.35, ZONAS.anulado.z);
+        return destino.set(ZONAS.anulado.x, 1.05, ZONAS.anulado.z);
       case "salida":
         return destino.set(RUTA_DESPACHO[1][0] + 1.2, 1.2, RUTA_DESPACHO[1][1] + 0.85);
       case "recepcion":
@@ -552,15 +555,19 @@ export class Almacen {
       this.ancla(et.ancla, v).project(this.camara);
       let mitad = this.anchos.get(et.el);
       if (mitad === undefined) {
-        mitad = (et.el.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
+        mitad = et.el.querySelector<HTMLElement>("[data-chip]")?.offsetWidth ?? 0;
         this.anchos.set(et.el, mitad);
       }
       // Las etiquetas se mantienen dentro del lienzo aunque su ancla quede cerca del borde.
-      const [ox, oy] = (this.ancho < 768 ? (et.desfaseMovil ?? et.desfase) : et.desfase) ?? [0, 0];
-      const x = THREE.MathUtils.clamp(((v.x + 1) / 2) * this.ancho + ox, mitad / 2 + 8, Math.max(mitad / 2 + 8, this.ancho - mitad / 2 - 8));
-      const y = ((1 - v.y) / 2) * this.alto + oy;
-      const fuera = x < -40 || x > this.ancho + 40 || y < -40 || y > this.alto + 40;
+      const [dx, oy] = (this.ancho < 768 ? (et.desfaseMovil ?? et.desfase) : et.desfase) ?? [0, 0];
+      // El ancla queda sobre el objeto; el chip se desplaza (abanico) y una línea guía lo une al ancla.
+      const x = ((v.x + 1) / 2) * this.ancho;
+      const y = ((1 - v.y) / 2) * this.alto;
+      const centro = THREE.MathUtils.clamp(x + dx, mitad / 2 + 8, Math.max(mitad / 2 + 8, this.ancho - mitad / 2 - 8));
+      const ox = centro - x;
+      const fuera = centro < -40 || centro > this.ancho + 40 || y < -40 || y > this.alto + 40;
       et.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      this.colocarChip(et.el, ox, oy);
       et.el.style.opacity = fuera ? "0" : opacidad.toFixed(3);
       et.el.style.visibility = fuera || opacidad < 0.02 ? "hidden" : "visible";
     }
@@ -576,6 +583,30 @@ export class Almacen {
         this.globo.style.visibility = "visible";
       }
     }
+  }
+
+  /** Coloca el chip con su desfase y traza la línea guía desde el ancla hasta el borde del chip. */
+  private colocarChip(el: HTMLElement, ox: number, oy: number) {
+    const chip = el.querySelector<HTMLElement>("[data-chip]");
+    const guia = el.querySelector<HTMLElement>("[data-guia]");
+    if (!chip) return;
+    const desfasada = Math.abs(ox) > 0.5 || Math.abs(oy) > 0.5;
+    chip.toggleAttribute("data-desfasada", desfasada);
+    // Arriba del ancla: el chip apoya su borde inferior; abajo: su borde superior.
+    const abajo = oy > 0;
+    chip.style.transform = abajo
+      ? `translate(calc(-50% + ${ox.toFixed(1)}px), ${oy.toFixed(1)}px)`
+      : `translate(calc(-50% + ${ox.toFixed(1)}px), calc(-100% - 6px + ${oy.toFixed(1)}px))`;
+    if (!guia) return;
+    if (!desfasada) {
+      guia.style.visibility = "hidden";
+      return;
+    }
+    const fx = ox;
+    const fy = abajo ? oy : oy - 6;
+    guia.style.visibility = "inherit";
+    guia.style.width = `${Math.hypot(fx, fy).toFixed(1)}px`;
+    guia.style.transform = `rotate(${Math.atan2(fy, fx).toFixed(4)}rad)`;
   }
 
   // ——— Puntero: al pasar sobre un estante se muestra su categoría y su conteo ———

@@ -22,11 +22,38 @@
   pointer-events: none;
 }
 
-.landing-etiqueta > * {
+.landing-etiqueta > [data-chip] {
   transform: translate(-50%, calc(-100% - 6px));
 }
 
-.landing-etiqueta > *::after {
+/* Línea guía de las etiquetas en abanico: nace en el ancla y termina en el chip. */
+.landing-guia {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 1.5px;
+  transform-origin: 0 50%;
+  background-color: var(--color-marino-900);
+  opacity: 0.55;
+  visibility: hidden;
+}
+
+.landing-guia::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -2.25px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-marino-900);
+}
+
+.landing-etiqueta > [data-chip][data-desfasada]::after {
+  display: none;
+}
+
+.landing-etiqueta > [data-chip]::after {
   content: "";
   position: absolute;
   left: 50%;
