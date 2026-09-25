@@ -41,7 +41,7 @@ export function Dialogo({ abierto, alCerrar, titulo, descripcion, children, pie,
       onClick={(e) => e.target === e.currentTarget && alCerrar()}
       aria-labelledby={idTitulo}
       aria-describedby={descripcion ? idDesc : undefined}
-      className={`${forma} bg-white p-0 text-slate-900 shadow-[0_12px_40px_-8px_rgb(15_30_51/0.35)] backdrop:bg-marino-900/40 open:flex open:flex-col`}
+      className={`${forma} bg-white p-0 text-slate-900 shadow-[0_12px_40px_-8px_color-mix(in_oklab,var(--color-marino-900)_35%,transparent)] backdrop:bg-marino-900/40 open:flex open:flex-col`}
     >
       <div className="flex items-start gap-4 border-b border-slate-200 px-5 py-4">
         <div className="min-w-0 flex-1">
@@ -57,7 +57,7 @@ export function Dialogo({ abierto, alCerrar, titulo, descripcion, children, pie,
         <button
           type="button"
           onClick={alCerrar}
-          className="-mr-2 -mt-1 grid size-10 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          className="-mr-2 -mt-1 grid size-11 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
           aria-label="Cerrar"
         >
           <X aria-hidden className="size-5" />

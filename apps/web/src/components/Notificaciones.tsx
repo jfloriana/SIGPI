@@ -36,7 +36,7 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
           <div
             key={n.id}
             role={n.tono === "error" ? "alert" : "status"}
-            className="pointer-events-auto flex w-full max-w-sm animate-[aparecer_200ms_var(--ease-salida)] items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-lg"
+            className="pointer-events-auto flex w-full max-w-sm animate-[aparecer_200ms_var(--ease-salida)] items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-[0_8px_24px_-6px_color-mix(in_oklab,var(--color-marino-900)_25%,transparent)]"
           >
             {n.tono === "exito" ? (
               <CircleCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-teal-700" />
