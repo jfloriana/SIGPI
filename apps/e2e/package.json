@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "echo \"Pruebas E2E: se configuran en la Fase 7\""
+    "test": "playwright test",
+    "test:traza": "playwright test --trace retain-on-failure",
+    "report": "playwright show-report"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0"
   }
 }

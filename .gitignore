@@ -11,3 +11,4 @@ coverage/
 *.log
 .impeccable/hook.cache.json
 apps/web/.impeccable/review/
+apps/e2e/defectos/
