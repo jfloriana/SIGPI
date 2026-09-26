@@ -68,11 +68,6 @@ export function FiltroPeriodo({ estado }: { estado: ReturnType<typeof usePeriodo
   const idError = useId();
   const idGrupo = useId();
 
-  const boton = (activo: boolean) =>
-    `min-h-11 shrink-0 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
-      activo ? "bg-marino text-white" : "text-slate-700 ring-1 ring-slate-300 ring-inset hover:bg-slate-50"
-    }`;
-
   return (
     <div className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-3">
       <div className="min-w-0">
@@ -86,12 +81,12 @@ export function FiltroPeriodo({ estado }: { estado: ReturnType<typeof usePeriodo
               type="button"
               aria-pressed={!personalizado && atajo === a.valor}
               onClick={() => elegirAtajo(a.valor)}
-              className={boton(!personalizado && atajo === a.valor)}
+              className="pastilla-filtro"
             >
               {a.texto}
             </button>
           ))}
-          <button type="button" aria-pressed={personalizado} onClick={elegirPersonalizado} className={boton(personalizado)}>
+          <button type="button" aria-pressed={personalizado} onClick={elegirPersonalizado} className="pastilla-filtro">
             Personalizado
           </button>
         </div>

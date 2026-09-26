@@ -368,7 +368,7 @@ export default function AjustesPage() {
                   </p>
                   <Link
                     to={`/kardex?productoId=${p.id}`}
-                    className="-ml-2 mt-1 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-marino hover:bg-marino-50 hover:underline"
+                    className="-ml-2 mt-1 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-marino transition-colors duration-150 hover:bg-marino-50 hover:underline"
                   >
                     Ver kardex<span className="sr-only"> de {p.codigo}</span>
                   </Link>

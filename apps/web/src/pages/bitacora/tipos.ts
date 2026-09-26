@@ -35,10 +35,10 @@ export const ACCION: Record<Accion, { texto: string; tono: TonoChip }> = {
   LOGIN_FALLIDO: { texto: "Acceso fallido", tono: "coral" },
   CREAR: { texto: "Creación", tono: "teal" },
   EDITAR: { texto: "Edición", tono: "marino" },
-  DESACTIVAR: { texto: "Desactivación", tono: "ambar" },
+  DESACTIVAR: { texto: "Desactivación", tono: "neutro" },
   CAMBIO_ESTADO: { texto: "Cambio de estado", tono: "marino" },
   ANULAR: { texto: "Anulación", tono: "coral" },
-  AJUSTE: { texto: "Ajuste de stock", tono: "ambar" },
+  AJUSTE: { texto: "Ajuste de stock", tono: "neutro" },
   RECEPCION: { texto: "Recepción", tono: "teal" },
 };
 

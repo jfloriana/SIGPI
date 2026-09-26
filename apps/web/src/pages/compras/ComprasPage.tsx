@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Plus, Sparkles } from "lucide-react";
-import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api } from "../../api/cliente";
 import type { Paginado } from "../../api/tipos";
 import { useUsuario } from "../../auth/AuthContext";
 import { Encabezado } from "../../components/Encabezado";
+import { Pestanas } from "../../components/Pestanas";
 import { useFiltrosUrl } from "../../hooks/useFiltrosUrl";
 import { menuDe } from "../../layout/menu";
 import { FormularioOrden } from "./FormularioOrden";
@@ -33,7 +34,6 @@ export default function ComprasPage() {
   const [params, setParams] = useSearchParams();
   const vista: Vista = filtros.vista === "proveedores" ? "proveedores" : "ordenes";
   const idTabs = useId();
-  const refsTabs = useRef<(HTMLButtonElement | null)[]>([]);
   const [panelProveedor, setPanelProveedor] = useState<{ abierto: boolean; proveedor: Proveedor | null }>({
     abierto: false,
     proveedor: null,
@@ -78,18 +78,6 @@ export default function ComprasPage() {
     setFiltro("vista", v === "ordenes" ? "" : v);
   }
 
-  function teclaTabs(e: KeyboardEvent, i: number) {
-    let destino = -1;
-    if (e.key === "ArrowRight") destino = (i + 1) % PESTANAS.length;
-    else if (e.key === "ArrowLeft") destino = (i - 1 + PESTANAS.length) % PESTANAS.length;
-    else if (e.key === "Home") destino = 0;
-    else if (e.key === "End") destino = PESTANAS.length - 1;
-    if (destino < 0) return;
-    e.preventDefault();
-    elegirVista(PESTANAS[destino].id);
-    refsTabs.current[destino]?.focus();
-  }
-
   const alBuscarProveedor = useCallback((v: string) => setFiltro("buscar", v), [setFiltro]);
 
   const acciones =
@@ -125,35 +113,13 @@ export default function ComprasPage() {
         acciones={acciones}
       />
 
-      <div role="tablist" aria-label="Secciones de compras" className="mb-4 flex gap-1 border-b border-slate-200">
-        {PESTANAS.map((t, i) => {
-          const activa = vista === t.id;
-          return (
-            <button
-              key={t.id}
-              ref={(el) => {
-                refsTabs.current[i] = el;
-              }}
-              type="button"
-              role="tab"
-              id={`${idTabs}-tab-${t.id}`}
-              aria-selected={activa}
-              aria-controls={`${idTabs}-panel-${t.id}`}
-              tabIndex={activa ? 0 : -1}
-              onClick={() => elegirVista(t.id)}
-              onKeyDown={(e) => teclaTabs(e, i)}
-              className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors duration-150 ${
-                activa ? "border-marino text-marino-800" : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
-              }`}
-            >
-              {t.texto}
-              {t.id === "proveedores" && proveedores.data && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 tabular-nums">{proveedores.data.total}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <Pestanas
+        etiqueta="Secciones de compras"
+        idBase={idTabs}
+        pestanas={PESTANAS.map((t) => (t.id === "proveedores" ? { ...t, cuenta: proveedores.data?.total } : t))}
+        activa={vista}
+        alElegir={elegirVista}
+      />
 
       {vista === "ordenes" ? (
         <div role="tabpanel" id={`${idTabs}-panel-ordenes`} aria-labelledby={`${idTabs}-tab-ordenes`}>

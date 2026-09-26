@@ -11,6 +11,11 @@ export interface Columna<T> {
   alinear?: "izquierda" | "derecha" | "centro";
   /** Oculta la columna en pantallas angostas (se sigue viendo en el detalle). */
   ocultarEnMovil?: boolean;
+  /**
+   * Columna de acción fija al borde derecho en pantallas angostas: si la tabla hace scroll horizontal,
+   * el botón sigue a la vista sin desplazar.
+   */
+  fijaEnMovil?: boolean;
   className?: string;
 }
 
@@ -31,6 +36,18 @@ interface PropsTabla<T> {
 }
 
 const ALINEAR = { izquierda: "text-left", derecha: "text-right tabular-nums", centro: "text-center" };
+
+/*
+ * Celda fija (solo < md): fondo opaco equivalente al de la fila y un filo slate-200 a la izquierda.
+ * Los fondos traslúcidos de fila (hover marino-50/60, alerta ámbar-50/60) se replican mezclados con blanco.
+ */
+const FIJA = "max-md:sticky max-md:right-0 max-md:z-[1] max-md:shadow-[inset_1px_0_0_var(--color-slate-200)]";
+const FONDO_FIJA = {
+  normal: "bg-white",
+  ambar: "bg-[color-mix(in_oklab,var(--color-ambar-50)_60%,white)]",
+  coral: "bg-[color-mix(in_oklab,var(--color-coral-50)_60%,white)]",
+};
+const HOVER_FIJA = "group-hover:bg-[color-mix(in_oklab,var(--color-marino-50)_60%,white)]";
 
 /**
  * Tabla de datos con estados de carga, vacío y error. En celular hace scroll horizontal
@@ -53,7 +70,8 @@ export function Tabla<T>({
   if (!filas || filas.length === 0) return <EstadoVacio {...vacio} />;
 
   return (
-    <div className="relative -mx-px overflow-x-auto">
+    // Región con scroll alcanzable con el teclado (axe: scrollable-region-focusable) cuando la tabla se desborda.
+    <div role="region" aria-label={descripcion} tabIndex={0} className="relative -mx-px overflow-x-auto focus-visible:outline-offset-[-2px]">
       <table className="w-full min-w-max border-collapse text-sm">
         <caption className="sr-only">{descripcion}</caption>
         <thead>
@@ -64,7 +82,7 @@ export function Tabla<T>({
                 scope="col"
                 className={`px-4 py-2.5 text-xs font-semibold tracking-wide whitespace-nowrap text-slate-600 uppercase ${
                   ALINEAR[c.alinear ?? "izquierda"]
-                } ${c.ocultarEnMovil ? "hidden md:table-cell" : ""} ${c.className ?? ""}`}
+                } ${c.ocultarEnMovil ? "hidden md:table-cell" : ""} ${c.fijaEnMovil ? `${FIJA} bg-slate-50` : ""} ${c.className ?? ""}`}
               >
                 {c.titulo}
               </th>
@@ -78,7 +96,7 @@ export function Tabla<T>({
               <tr
                 key={claveFila(fila)}
                 onClick={alSeleccionar ? () => alSeleccionar(fila) : undefined}
-                className={`border-b border-slate-100 transition-colors duration-150 last:border-0 ${
+                className={`group border-b border-slate-100 transition-colors duration-150 last:border-0 ${
                   alSeleccionar ? "cursor-pointer hover:bg-marino-50/60" : ""
                 } ${marca === "ambar" ? "bg-ambar-50/60" : marca === "coral" ? "bg-coral-50/60" : ""}`}
               >
@@ -87,6 +105,10 @@ export function Tabla<T>({
                     key={c.titulo}
                     className={`relative px-4 py-3 align-middle ${ALINEAR[c.alinear ?? "izquierda"]} ${
                       c.ocultarEnMovil ? "hidden md:table-cell" : ""
+                    } ${
+                      c.fijaEnMovil
+                        ? `${FIJA} max-md:transition-colors max-md:duration-150 ${FONDO_FIJA[marca ?? "normal"]} ${alSeleccionar ? HOVER_FIJA : ""} md:bg-transparent`
+                        : ""
                     } ${c.className ?? ""}`}
                   >
                     {c.celda(fila)}

@@ -191,7 +191,7 @@ export default function KardexPage() {
                   <button
                     type="button"
                     onClick={() => setFiltros({ tipo: "", desde: "", hasta: "" })}
-                    className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-marino hover:bg-marino-50"
+                    className="btn-fantasma"
                   >
                     Limpiar filtros
                   </button>

@@ -95,6 +95,7 @@ export default function UsuariosPage() {
     columnas.push({
       titulo: "Acciones",
       alinear: "derecha",
+      fijaEnMovil: true,
       celda: (u) => (
         <button
           type="button"

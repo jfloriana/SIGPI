@@ -1,4 +1,4 @@
-import { CircleAlert, Clock, Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { ChevronDown, CircleAlert, Clock, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../api/cliente";
@@ -97,11 +97,7 @@ export function LoginPage() {
           {mensajeGeneral && (
             <div
               role="alert"
-              className={`mt-6 flex gap-3 rounded-lg border p-3 text-sm animate-[aparecer_200ms_var(--ease-salida)] ${
-                mensajeGeneral.bloqueada
-                  ? "border-ambar-100 bg-ambar-50 text-ambar-800"
-                  : "border-coral-100 bg-coral-50 text-coral-800"
-              }`}
+              className="mt-6 flex gap-3 rounded-lg border border-coral-100 bg-coral-50 p-3 text-sm text-coral-800 animate-[aparecer_200ms_var(--ease-salida)]"
             >
               {mensajeGeneral.bloqueada ? (
                 <Clock aria-hidden className="mt-0.5 size-4 shrink-0" />
@@ -175,14 +171,15 @@ export function LoginPage() {
           </form>
 
           <details className="group mt-8 rounded-lg border border-slate-200 text-sm">
-            <summary className="flex min-h-11 items-center px-4 font-medium text-slate-700 select-none">
+            <summary className="flex min-h-11 list-none items-center justify-between gap-2 rounded-lg px-4 font-medium text-slate-700 transition-colors duration-150 select-none hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
               Usuarios de demostración
+              <ChevronDown aria-hidden className="size-4 text-slate-500 transition-transform duration-200 ease-[var(--ease-salida)] group-open:rotate-180" />
             </summary>
             <div className="border-t border-slate-200 px-4 py-3">
               <p className="mb-2 text-slate-600">
                 Contraseña de todos: <code className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-900">Demo2026!</code>
               </p>
-              <ul className="space-y-1">
+              <ul className="-mx-2 space-y-0.5">
                 {CUENTAS_DEMO.map((c) => (
                   <li key={c.email}>
                     <button
@@ -191,7 +188,7 @@ export function LoginPage() {
                         setEmail(c.email);
                         setErrores({});
                       }}
-                      className="flex min-h-9 w-full items-center justify-between gap-2 rounded-md px-2 text-left hover:bg-slate-50"
+                      className="flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--radius-control)] px-2 text-left transition-colors duration-150 hover:bg-marino-50/60"
                     >
                       <span className="truncate text-slate-900">{c.email}</span>
                       <span className="shrink-0 text-xs text-slate-600">{c.rol}</span>

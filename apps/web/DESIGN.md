@@ -245,10 +245,12 @@ Ritmo: la escala de 4 px de Tailwind; huecos de 8 y 12 px entre controles, 16–
 Operate es plano: la profundidad se expresa con bordes slate-200, el contraste blanco sobre slate-50 y la barra marino. Las sombras aparecen solo en lo que flota sobre el resto: diálogos, avisos emergentes y la barra fija inferior del móvil. La landing es la excepción natural de su mundo: volúmenes 3D con sombras proyectadas por la escena, y paneles y rótulos flotantes con sombras suaves teñidas de marino-900 (10–15 %).
 
 ### Shadow Vocabulary
-- **Diálogo** (`0 12px 40px -8px` marino-900 al 35 %): diálogos centrados y paneles laterales, con fondo marino-900 al 40 %.
-- **Barra inferior** (`0 -4px 16px -6px` marino-900 al 15 %): barra de acción fija del móvil.
+Las sombras de Operate son tokens de `src/index.css` (`--shadow-*`, clases `shadow-dialogo`, `shadow-barra`, `shadow-flotante`, `shadow-segmento`, `shadow-perilla`); ningún componente escribe una sombra con color literal.
+- **Diálogo** (`shadow-dialogo`: `0 12px 40px -8px` marino-900 al 35 %): diálogos centrados y paneles laterales, con fondo marino-900 al 40 %.
+- **Barra inferior** (`shadow-barra`: `0 -4px 16px -6px` marino-900 al 15 %): barra de acción fija del móvil.
+- **Aviso emergente y tooltip de gráfico** (`shadow-flotante`: `0 8px 24px -6px` marino-900 al 25 %): notificaciones de 4 s en la esquina inferior y globo de los gráficos del tablero.
+- **Segmento elegido / perilla** (`shadow-segmento`, `shadow-perilla`, 1–3 px marino-900 al 15–30 %): la única elevación dentro de la página, para mostrar qué opción de un control segmentado o de un interruptor está arriba.
 - **Flotante de landing** (sombra `lg` o `md` de Tailwind teñida marino-900 al 10–15 %): paneles de estación, rótulos del almacén, navegación de estaciones.
-- **Aviso emergente** (sombra `lg` de Tailwind): notificaciones de 4 s en la esquina inferior.
 
 ### Named Rules
 **The Flat Operate Rule.** En el sistema de gestión, lo que está en la página no tiene sombra; solo lo que se superpone a la página la tiene.
@@ -263,14 +265,17 @@ Esquinas suavemente redondeadas y consistentes: 8 px para todo control (botones,
 Firmes y sobrios: color plano, sin sombra, cambio de tono en hover.
 - **Shape:** esquina de control (8 px), altura mínima de 44 px (48 px en la landing), 600 a 0.875rem, icono de 16 px con hueco de 8 px.
 - **Primary:** teal-700 con texto blanco; es la única acción principal de cada vista («Ingresar al demo», «Guardar», «Despachar»).
-- **Hover / Focus:** hover a teal-800 en 150 ms; foco con contorno de 2 px marino-500 desplazado 2 px (3 px en la landing). Deshabilitado al 60 % de opacidad.
+- **Hover / Focus / Press:** hover a teal-800 en 150 ms; foco con contorno de 2 px marino-500 desplazado 2 px (3 px en la landing; marino-100 sobre la barra lateral marino); al pulsar, escala 0.98 en 150 ms (solo con movimiento permitido). Deshabilitado al 60 % de opacidad.
+- **Fantasma (Operate):** `btn-fantasma` (texto marino, hover marino-50) y `btn-fantasma-neutro` (texto slate-700, hover slate-100) para acciones de fila y «Limpiar filtros»; 44 px de alto.
+- **Pastilla de filtro:** `pastilla-filtro` con `aria-pressed` (estados de pedido, período del tablero): anillo slate-300; elegida en marino con texto blanco.
+- **Control segmentado:** `OpcionesSegmentadas` (`components/Segmentado.tsx`): pista slate-100, segmentos de 44 px con esquina de control; el elegido en blanco, texto marino y `shadow-segmento`.
 - **Secondary:** blanco con borde slate-300 y texto slate-800; hover slate-50.
 - **Danger:** coral-700 con texto blanco, hover coral-800; solo para anular o desactivar.
 - **Ghost (landing):** sin fondo, texto marino-900, hover marino-100 al 70 % («Recorrer el almacén»).
 
 ### Chips
 - **Style:** pastilla con fondo -50, texto -800 (marino base en el tono marino), anillo interior -100 y un punto de 6 px en el tono base; 600 a 0.75rem.
-- **State:** mapeo fijo de estados. Pedido: Registrado neutro, Aprobado marino, Despachado ámbar, Entregado teal, Anulado coral. Orden de compra: Pendiente neutro, Aprobada marino, Recibida teal, Anulada coral. Stock: teal, o ámbar «En alerta · n» cuando stock ≤ mínimo. El texto siempre acompaña al color.
+- **State:** mapeo fijo de estados. Pedido: Registrado neutro, Aprobado marino, Despachado teal (en ruta, como el andén de la landing), Entregado teal sólido (fondo teal-700, texto blanco, punto teal-100: estado final), Anulado coral. Movimientos de kardex: Entrada teal, Salida marino, Ajuste ± neutro. Bitácora: Desactivación y Ajuste neutros; cuenta bloqueada en coral. Orden de compra: Pendiente neutro, Aprobada marino, Recibida teal, Anulada coral. Stock: teal, o ámbar «En alerta · n» cuando stock ≤ mínimo. El texto siempre acompaña al color.
 
 ### Cards / Containers
 - **Corner Style:** 12 px.

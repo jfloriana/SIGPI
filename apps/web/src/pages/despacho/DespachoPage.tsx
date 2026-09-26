@@ -91,6 +91,7 @@ export default function DespachoPage() {
     {
       titulo: "Acción",
       alinear: "derecha",
+      fijaEnMovil: true,
       celda: (p) => (
         <button
           type="button"
@@ -113,6 +114,7 @@ export default function DespachoPage() {
     {
       titulo: "Acción",
       alinear: "derecha",
+      fijaEnMovil: true,
       celda: (p) => {
         const enCurso = entregar.isPending && entregar.variables?.id === p.id;
         return (

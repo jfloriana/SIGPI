@@ -70,7 +70,7 @@ export default function AlertasPage() {
             </p>
             <Link
               to={`/kardex?productoId=${a.id}`}
-              className="-ml-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-marino hover:bg-marino-50 hover:underline"
+              className="-ml-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-marino transition-colors duration-150 hover:bg-marino-50 hover:underline"
             >
               Ver kardex<span className="sr-only"> de {a.codigo}</span>
             </Link>
@@ -106,7 +106,7 @@ export default function AlertasPage() {
       celda: (a) => (
         <Link
           to={`/kardex?productoId=${a.id}`}
-          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium whitespace-nowrap text-marino hover:bg-marino-50 hover:underline"
+          className="btn-fantasma"
         >
           Ver kardex<span className="sr-only"> de {a.codigo}</span>
         </Link>

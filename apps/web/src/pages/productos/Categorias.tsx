@@ -49,7 +49,7 @@ export function SeccionCategorias({
             type="button"
             onClick={() => alVerProductos(c)}
             disabled={c.numProductos === 0}
-            className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-marino hover:bg-marino-50 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline disabled:hover:bg-transparent"
+            className="btn-fantasma disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline disabled:hover:bg-transparent"
           >
             Ver productos<span className="sr-only"> de {c.nombre}</span>
           </button>
@@ -57,7 +57,7 @@ export function SeccionCategorias({
             <button
               type="button"
               onClick={() => alRenombrar(c)}
-              className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="btn-fantasma-neutro"
             >
               Renombrar<span className="sr-only"> {c.nombre}</span>
             </button>

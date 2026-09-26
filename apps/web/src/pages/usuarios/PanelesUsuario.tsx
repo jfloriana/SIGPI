@@ -438,5 +438,5 @@ function SeccionAcceso({
 }
 
 export function ChipBloqueado({ hasta }: { hasta: string }) {
-  return <Chip tono="ambar">Bloqueado hasta {horaLima(hasta)}</Chip>;
+  return <Chip tono="coral">Bloqueado hasta {horaLima(hasta)}</Chip>;
 }

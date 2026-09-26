@@ -7,7 +7,13 @@ import { ChipActivo } from "../../components/Chip";
 import { Dialogo, DialogoConfirmacion } from "../../components/Dialogo";
 import { Aviso } from "../../components/Estados";
 import { useNotificar } from "../../components/Notificaciones";
+import { OpcionesSegmentadas } from "../../components/Segmentado";
 import { errorDocumento, LONGITUD_DOC, ZONAS, type Cliente, type TipoDoc } from "./tipos";
+
+const OPCIONES_TIPO = [
+  { valor: "RUC", texto: "RUC (empresa)" },
+  { valor: "DNI", texto: "DNI (persona)" },
+] as const satisfies readonly { valor: TipoDoc; texto: string }[];
 
 export type ModoPanel = { modo: "crear" } | { modo: "editar"; cliente: Cliente } | { modo: "ver"; cliente: Cliente };
 
@@ -238,24 +244,12 @@ function FormularioCliente({
           <legend id={idTipo} className="campo-etiqueta">
             Tipo de documento
           </legend>
-          <div className="grid grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-slate-100 p-1">
-            {(["RUC", "DNI"] as const).map((tipo) => (
-              <label
-                key={tipo}
-                className="relative flex min-h-10 cursor-pointer items-center justify-center rounded-md text-sm font-semibold text-slate-600 transition-colors duration-150 hover:text-slate-900 has-checked:bg-white has-checked:text-marino has-checked:shadow-sm has-focus-visible:ring-2 has-focus-visible:ring-marino-500"
-              >
-                <input
-                  type="radio"
-                  name="tipoDoc"
-                  value={tipo}
-                  checked={f.tipoDoc === tipo}
-                  onChange={() => cambiarTipo(tipo)}
-                  className="sr-only"
-                />
-                {tipo === "RUC" ? "RUC (empresa)" : "DNI (persona)"}
-              </label>
-            ))}
-          </div>
+          <OpcionesSegmentadas
+            nombre="tipoDoc"
+            opciones={OPCIONES_TIPO}
+            valor={f.tipoDoc}
+            alCambiar={cambiarTipo}
+          />
         </fieldset>
 
         <Campo

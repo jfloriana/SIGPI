@@ -129,6 +129,7 @@ export default function BitacoraPage() {
     {
       titulo: "Detalle",
       alinear: "derecha",
+      fijaEnMovil: true,
       celda: (r) => (
         <button
           type="button"

@@ -28,8 +28,8 @@ const TEXTO_EJE = "var(--color-slate-600)";
 const COLOR_ESTADO: Record<EstadoPedido, string> = {
   REGISTRADO: "var(--color-slate-400)",
   APROBADO: "var(--color-marino-500)",
-  DESPACHADO: "var(--color-ambar)",
-  ENTREGADO: "var(--color-teal)",
+  DESPACHADO: "var(--color-teal)",
+  ENTREGADO: "var(--color-teal-700)",
   ANULADO: "var(--color-coral)",
 };
 const TICK = { fill: TEXTO_EJE, fontSize: 12 };
@@ -107,7 +107,7 @@ function Vacio({ alto, titulo, descripcion }: { alto: number; titulo: string; de
 /** Globo del gráfico: el valor manda, la etiqueta acompaña. */
 function Globo({ titulo, filas }: { titulo: string; filas: { clave: string; valor: string; color?: string }[] }) {
   return (
-    <div className="max-w-72 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md shadow-slate-900/10">
+    <div className="max-w-72 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-flotante">
       <p className="text-xs text-slate-600">{titulo}</p>
       {filas.map((f) => (
         <p key={f.clave} className="mt-0.5 flex items-center gap-2">

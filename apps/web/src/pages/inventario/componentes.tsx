@@ -189,7 +189,7 @@ export function SelectorProducto({
             onMouseDown={(e) => e.preventDefault()}
             onMouseEnter={() => setActivo(i)}
             onClick={() => elegir(p)}
-            className={`flex min-h-12 cursor-pointer items-center justify-between gap-3 px-3 py-2 transition-colors duration-100 ${
+            className={`flex min-h-12 cursor-pointer items-center justify-between gap-3 px-3 py-2 transition-colors duration-150 ${
               i === activo ? "bg-marino-50" : ""
             }`}
           >

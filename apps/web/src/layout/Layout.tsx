@@ -18,6 +18,13 @@ function iniciales(nombre: string) {
 function Navegacion({ alNavegar }: { alNavegar?: () => void }) {
   const usuario = useUsuario();
   const opciones = menuDe(usuario.rol);
+  const { pathname } = useLocation();
+
+  // Una ruta de detalle (p. ej. /pedidos/12) mantiene marcada su sección, salvo que otra opción
+  // del menú la cubra mejor (/pedidos/nuevo es «Nuevo pedido», no «Pedidos»).
+  const seccion = opciones
+    .filter((o) => pathname === o.ruta || pathname.startsWith(o.ruta + "/"))
+    .sort((a, b) => b.ruta.length - a.ruta.length)[0]?.ruta;
 
   return (
     <nav aria-label="Menú principal" className="flex-1 overflow-y-auto px-3 py-4">
@@ -35,14 +42,17 @@ function Navegacion({ alNavegar }: { alNavegar?: () => void }) {
                     end
                     onClick={alNavegar}
                     className={({ isActive }) =>
-                      `flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-150 ${
-                        isActive ? "bg-white/12 text-white" : "text-marino-100 hover:bg-white/6 hover:text-white"
+                      `flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-marino-100 ${
+                        isActive || seccion === ruta ? "bg-white/12 text-white" : "text-marino-100 hover:bg-white/6 hover:text-white"
                       }`
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        <Icono aria-hidden className={`size-[18px] shrink-0 ${isActive ? "text-teal-100" : ""}`} />
+                        <Icono
+                          aria-hidden
+                          className={`size-[18px] shrink-0 transition-colors duration-150 ${isActive || seccion === ruta ? "text-teal-100" : ""}`}
+                        />
                         {etiqueta}
                       </>
                     )}
@@ -108,7 +118,7 @@ export function Layout() {
             <button
               type="button"
               onClick={() => setMenuAbierto(false)}
-              className="absolute top-2.5 right-2 grid size-11 place-items-center rounded-lg text-marino-100 hover:bg-white/10 hover:text-white"
+              className="absolute top-2.5 right-2 grid size-11 place-items-center rounded-lg text-marino-100 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-marino-100"
               aria-label="Cerrar menú"
             >
               <X aria-hidden className="size-5" />
@@ -123,7 +133,7 @@ export function Layout() {
           <button
             type="button"
             onClick={() => setMenuAbierto(true)}
-            className="-ml-2 grid size-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 lg:hidden"
+            className="-ml-2 grid size-11 place-items-center rounded-lg text-slate-700 transition-colors duration-150 hover:bg-slate-100 lg:hidden"
             aria-label="Abrir menú"
             aria-expanded={menuAbierto}
           >

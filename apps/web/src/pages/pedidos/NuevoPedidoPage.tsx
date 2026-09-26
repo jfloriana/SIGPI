@@ -7,6 +7,7 @@ import { aQuery, type Paginado } from "../../api/tipos";
 import { Encabezado } from "../../components/Encabezado";
 import { Aviso } from "../../components/Estados";
 import { useNotificar } from "../../components/Notificaciones";
+import { OpcionesSegmentadas } from "../../components/Segmentado";
 import { Tarjeta } from "../../components/Tarjeta";
 import { formatoNumero, formatoSoles } from "../../utils/formato";
 import { BuscadorLista, useRetardado } from "./componentes/BuscadorLista";
@@ -21,6 +22,8 @@ import {
 } from "./tipos";
 
 const RESULTADOS = 8;
+
+const OPCIONES_CONDICION = (["CONTADO", "CREDITO"] as const).map((c) => ({ valor: c, texto: TEXTO_CONDICION[c] }));
 
 interface Linea {
   producto: ProductoVenta;
@@ -303,27 +306,10 @@ function FilaLinea({
 /* ───────────────────────── Condición de pago ───────────────────────── */
 
 function SelectorCondicion({ valor, alCambiar, error }: { valor: CondicionPago; alCambiar: (c: CondicionPago) => void; error?: string }) {
-  const nombre = useId();
   return (
     <fieldset>
       <legend className="sr-only">Condición de pago</legend>
-      <div className="grid grid-cols-2 gap-1 rounded-[calc(var(--radius-control)+4px)] bg-slate-100 p-1">
-        {(["CONTADO", "CREDITO"] as const).map((c) => (
-          <label key={c} className="relative">
-            <input
-              type="radio"
-              name={nombre}
-              value={c}
-              checked={valor === c}
-              onChange={() => alCambiar(c)}
-              className="peer sr-only"
-            />
-            <span className="flex min-h-11 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-sm font-semibold text-slate-600 transition-colors duration-150 peer-checked:bg-white peer-checked:text-marino peer-checked:shadow-[0_1px_3px_rgb(15_30_51/0.15)] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-marino-500 hover:text-slate-900">
-              {TEXTO_CONDICION[c]}
-            </span>
-          </label>
-        ))}
-      </div>
+      <OpcionesSegmentadas opciones={OPCIONES_CONDICION} valor={valor} alCambiar={alCambiar} />
       {error && <p className="campo-error">{error}</p>}
     </fieldset>
   );
@@ -581,7 +567,7 @@ export default function NuevoPedidoPage() {
       </div>
 
       {/* Barra fija en celular y tableta: total y botón siempre visibles */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_-6px_rgb(15_30_51/0.15)] lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-barra lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <div className="min-w-0 flex-1 leading-tight">
             <p className="text-xs text-slate-600">

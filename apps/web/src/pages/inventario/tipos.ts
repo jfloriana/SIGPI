@@ -60,8 +60,8 @@ export const TIPOS_MOVIMIENTO: TipoMovimiento[] = ["ENTRADA", "SALIDA", "AJUSTE_
 export const INFO_TIPO: Record<TipoMovimiento, { texto: string; tono: TonoChip; signo: 1 | -1 }> = {
   ENTRADA: { texto: "Entrada", tono: "teal", signo: 1 },
   SALIDA: { texto: "Salida", tono: "marino", signo: -1 },
-  AJUSTE_POSITIVO: { texto: "Ajuste +", tono: "ambar", signo: 1 },
-  AJUSTE_NEGATIVO: { texto: "Ajuste −", tono: "ambar", signo: -1 },
+  AJUSTE_POSITIVO: { texto: "Ajuste +", tono: "neutro", signo: 1 },
+  AJUSTE_NEGATIVO: { texto: "Ajuste −", tono: "neutro", signo: -1 },
 };
 
 export const esTipoMovimiento = (v: string): v is TipoMovimiento => (TIPOS_MOVIMIENTO as string[]).includes(v);

@@ -39,7 +39,7 @@ export function Buscador({
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder={placeholder}
-          className="campo-control pr-10 pl-9"
+          className="campo-control pr-11 pl-9"
           autoComplete="off"
         />
         {texto && (
@@ -49,7 +49,7 @@ export function Buscador({
               setTexto("");
               alCambiar("");
             }}
-            className="absolute inset-y-0 right-0 grid w-10 place-items-center text-slate-500 hover:text-slate-900"
+            className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-[var(--radius-control)] text-slate-500 transition-colors duration-150 hover:text-slate-900"
             aria-label="Limpiar búsqueda"
           >
             <X aria-hidden className="size-4" />

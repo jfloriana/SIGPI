@@ -160,9 +160,7 @@ export default function PedidosPage() {
                   type="button"
                   aria-pressed={activo}
                   onClick={() => setFiltro("estado", o.valor)}
-                  className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
-                    activo ? "bg-marino text-white" : "text-slate-700 ring-1 ring-slate-300 ring-inset hover:bg-slate-50"
-                  }`}
+                  className="pastilla-filtro"
                 >
                   {o.texto}
                 </button>

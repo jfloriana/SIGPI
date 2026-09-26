@@ -37,6 +37,13 @@
 
   --radius-control: 0.5rem;
   --ease-salida: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Sombras: solo lo que se superpone o se levanta (The Flat Operate Rule), siempre teñidas de marino-900. */
+  --shadow-segmento: 0 1px 3px color-mix(in oklab, var(--color-marino-900) 15%, transparent);
+  --shadow-perilla: 0 1px 2px color-mix(in oklab, var(--color-marino-900) 30%, transparent);
+  --shadow-barra: 0 -4px 16px -6px color-mix(in oklab, var(--color-marino-900) 15%, transparent);
+  --shadow-dialogo: 0 12px 40px -8px color-mix(in oklab, var(--color-marino-900) 35%, transparent);
+  --shadow-flotante: 0 8px 24px -6px color-mix(in oklab, var(--color-marino-900) 25%, transparent);
 }
 
 @layer base {
@@ -79,11 +86,27 @@
   button:disabled {
     cursor: not-allowed;
   }
+  /*
+   * Respuesta de 150 ms en todo lo interactivo (hover y foco cambian de tono, no saltan).
+   * Las utilidades transition-* de cada componente la reemplazan cuando necesitan más propiedades.
+   */
+  a,
+  button,
+  summary,
+  label,
+  select,
+  [role="button"],
+  [role="tab"] {
+    transition-property: color, background-color, border-color, text-decoration-color, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-salida);
+  }
 }
 
 /* Componentes reutilizables (en Tailwind 4 se declaran como @utility para poder combinarlos). */
+/* Pulsar: escala 0.98 en 150 ms como confirmación táctil (solo con movimiento permitido y si no está deshabilitado). */
 @utility btn {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-sm font-semibold transition-colors duration-150 disabled:opacity-60;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-[var(--ease-salida)] disabled:opacity-60 motion-safe:active:not-disabled:scale-[0.98];
 }
 @utility btn-primario {
   @apply btn bg-teal-700 text-white hover:bg-teal-800;
@@ -99,6 +122,17 @@
 }
 @utility campo-control {
   @apply block min-h-11 w-full rounded-[var(--radius-control)] border border-slate-300 bg-white px-3 text-base text-slate-900 transition-colors duration-150 placeholder:text-slate-500 hover:border-slate-400 focus:border-marino-500 focus:outline-none focus:ring-2 focus:ring-marino-100 aria-invalid:border-coral-700 aria-invalid:ring-coral-100 sm:text-sm;
+}
+/* Botón discreto dentro de tablas y barras de filtros (Editar, Ver kardex, Limpiar filtros). */
+@utility btn-fantasma {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-medium whitespace-nowrap text-marino transition-[color,background-color,transform] duration-150 ease-[var(--ease-salida)] hover:bg-marino-50 disabled:opacity-60 motion-safe:active:not-disabled:scale-[0.98];
+}
+@utility btn-fantasma-neutro {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-medium whitespace-nowrap text-slate-700 transition-[color,background-color,transform] duration-150 ease-[var(--ease-salida)] hover:bg-slate-100 hover:text-slate-900 disabled:opacity-60 motion-safe:active:not-disabled:scale-[0.98];
+}
+/* Pastilla de filtro con estado (aria-pressed): estados de pedido, período del tablero. */
+@utility pastilla-filtro {
+  @apply min-h-11 shrink-0 rounded-full px-4 text-sm font-medium whitespace-nowrap text-slate-700 ring-1 ring-slate-300 transition-[color,background-color,box-shadow,transform] duration-150 ease-[var(--ease-salida)] ring-inset hover:bg-slate-50 motion-safe:active:scale-[0.98] aria-pressed:bg-marino aria-pressed:text-white aria-pressed:ring-marino aria-pressed:hover:bg-marino;
 }
 @utility campo-error {
   @apply mt-1.5 text-sm text-coral-700;

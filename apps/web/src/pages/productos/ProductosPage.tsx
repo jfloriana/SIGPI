@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Plus, TriangleAlert } from "lucide-react";
-import { useCallback, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useId, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { api } from "../../api/cliente";
 import { aQuery, type Paginado } from "../../api/tipos";
@@ -8,6 +8,7 @@ import { useUsuario } from "../../auth/AuthContext";
 import { Buscador } from "../../components/Buscador";
 import { ChipActivo, ChipStock } from "../../components/Chip";
 import { Encabezado } from "../../components/Encabezado";
+import { Pestanas } from "../../components/Pestanas";
 import { Paginacion, Tabla, type Columna } from "../../components/Tabla";
 import { BarraFiltros, Tarjeta } from "../../components/Tarjeta";
 import { useFiltrosUrl } from "../../hooks/useFiltrosUrl";
@@ -35,7 +36,6 @@ export default function ProductosPage() {
   const [, setParams] = useSearchParams();
   const vista: Vista = filtros.vista === "categorias" ? "categorias" : "productos";
   const idTabs = useId();
-  const refsTabs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const [panelProducto, setPanelProducto] = useState<{
     abierto: boolean;
@@ -91,18 +91,6 @@ export default function ProductosPage() {
     setFiltro("vista", v === "productos" ? "" : v);
   }
 
-  function teclaTabs(e: KeyboardEvent, i: number) {
-    let destino = -1;
-    if (e.key === "ArrowRight") destino = (i + 1) % PESTANAS.length;
-    else if (e.key === "ArrowLeft") destino = (i - 1 + PESTANAS.length) % PESTANAS.length;
-    else if (e.key === "Home") destino = 0;
-    else if (e.key === "End") destino = PESTANAS.length - 1;
-    if (destino < 0) return;
-    e.preventDefault();
-    elegirVista(PESTANAS[destino].id);
-    refsTabs.current[destino]?.focus();
-  }
-
   const columnas: Columna<Producto>[] = [
     {
       titulo: "Código",
@@ -152,7 +140,7 @@ export default function ProductosPage() {
           {veKardex && (
             <Link
               to={`/kardex?productoId=${p.id}`}
-              className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium whitespace-nowrap text-marino hover:bg-marino-50 hover:underline"
+              className="btn-fantasma"
             >
               Ver kardex<span className="sr-only"> de {p.codigo}</span>
             </Link>
@@ -161,7 +149,7 @@ export default function ProductosPage() {
             <button
               type="button"
               onClick={() => setPanelProducto({ abierto: true, producto: p })}
-              className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="btn-fantasma-neutro"
             >
               Editar<span className="sr-only"> {p.codigo}</span>
             </button>
@@ -191,35 +179,13 @@ export default function ProductosPage() {
         acciones={accionEncabezado}
       />
 
-      <div role="tablist" aria-label="Secciones del catálogo" className="mb-4 flex gap-1 border-b border-slate-200">
-        {PESTANAS.map((t, i) => {
-          const activa = vista === t.id;
-          return (
-            <button
-              key={t.id}
-              ref={(el) => {
-                refsTabs.current[i] = el;
-              }}
-              type="button"
-              role="tab"
-              id={`${idTabs}-tab-${t.id}`}
-              aria-selected={activa}
-              aria-controls={`${idTabs}-panel-${t.id}`}
-              tabIndex={activa ? 0 : -1}
-              onClick={() => elegirVista(t.id)}
-              onKeyDown={(e) => teclaTabs(e, i)}
-              className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold transition-colors duration-150 ${
-                activa ? "border-marino text-marino-800" : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
-              }`}
-            >
-              {t.texto}
-              {t.id === "categorias" && categorias.data && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 tabular-nums">{categorias.data.total}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <Pestanas
+        etiqueta="Secciones del catálogo"
+        idBase={idTabs}
+        pestanas={PESTANAS.map((t) => (t.id === "categorias" ? { ...t, cuenta: categorias.data?.total } : t))}
+        activa={vista}
+        alElegir={elegirVista}
+      />
 
       {vista === "productos" ? (
         <div role="tabpanel" id={`${idTabs}-panel-productos`} aria-labelledby={`${idTabs}-tab-productos`} className="space-y-4">
@@ -294,7 +260,7 @@ export default function ProductosPage() {
                   className={`relative inline-block h-6 w-10 shrink-0 rounded-full transition-colors duration-150 ${soloAlerta ? "bg-ambar" : "bg-slate-300"}`}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-[0_1px_2px_rgb(15_30_51/0.3)] transition-transform duration-150 ${
+                    className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-perilla transition-transform duration-150 ${
                       soloAlerta ? "translate-x-4" : ""
                     }`}
                   />
@@ -305,7 +271,7 @@ export default function ProductosPage() {
                 <button
                   type="button"
                   onClick={limpiarFiltros}
-                  className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-marino hover:bg-marino-50"
+                  className="btn-fantasma"
                 >
                   Limpiar filtros
                 </button>

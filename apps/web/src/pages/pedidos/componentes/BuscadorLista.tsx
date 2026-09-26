@@ -160,7 +160,7 @@ export function BuscadorLista<T>({
               onMouseDown={(e) => e.preventDefault()}
               onMouseEnter={() => setActivo(i)}
               onClick={() => elegir(r)}
-              className={`flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-100 ${
+              className={`flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-150 ${
                 off ? "cursor-not-allowed opacity-60" : "cursor-pointer"
               } ${i === activo && !off ? "bg-marino-50" : ""}`}
             >

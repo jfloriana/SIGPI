@@ -65,7 +65,7 @@ export function SeccionProveedores({
           <button
             type="button"
             onClick={() => alVerOrdenes(p)}
-            className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium whitespace-nowrap text-marino hover:bg-marino-50 hover:underline"
+            className="btn-fantasma"
           >
             Ver órdenes<span className="sr-only"> de {p.razonSocial}</span>
           </button>
@@ -73,7 +73,7 @@ export function SeccionProveedores({
             <button
               type="button"
               onClick={() => alEditar(p)}
-              className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              className="btn-fantasma-neutro"
             >
               Editar<span className="sr-only"> {p.razonSocial}</span>
             </button>

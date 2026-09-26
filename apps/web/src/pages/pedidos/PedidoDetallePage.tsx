@@ -25,7 +25,7 @@ function Volver() {
   return (
     <Link
       to="/pedidos"
-      className="-ml-2 mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-marino hover:bg-marino-50"
+      className="-ml-2 mb-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-marino transition-colors duration-150 hover:bg-marino-50"
     >
       <ArrowLeft aria-hidden className="size-4" />
       Pedidos

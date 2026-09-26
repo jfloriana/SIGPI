@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
 
-export type TonoChip = "neutro" | "marino" | "teal" | "ambar" | "coral";
+/**
+ * Un significado por tono (DESIGN.md, The One Meaning per Hue Rule): marino = estructura/información,
+ * teal = acción y éxito, ámbar = alerta de stock, coral = error y anulación. `teal-solido` marca un
+ * estado final alcanzado (pedido entregado): fondo teal-700 con texto blanco (The White-on-700 Rule).
+ */
+export type TonoChip = "neutro" | "marino" | "teal" | "teal-solido" | "ambar" | "coral";
 
 const TONOS: Record<TonoChip, string> = {
   neutro: "bg-slate-100 text-slate-700 ring-slate-200",
   marino: "bg-marino-50 text-marino ring-marino-100",
   teal: "bg-teal-50 text-teal-800 ring-teal-100",
+  "teal-solido": "bg-teal-700 text-white ring-teal-700",
   ambar: "bg-ambar-50 text-ambar-800 ring-ambar-100",
   coral: "bg-coral-50 text-coral-800 ring-coral-100",
 };
@@ -14,6 +20,7 @@ const PUNTO: Record<TonoChip, string> = {
   neutro: "bg-slate-400",
   marino: "bg-marino-500",
   teal: "bg-teal",
+  "teal-solido": "bg-teal-100",
   ambar: "bg-ambar",
   coral: "bg-coral",
 };
@@ -36,8 +43,9 @@ export type EstadoOrden = "PENDIENTE" | "APROBADA" | "RECIBIDA" | "ANULADA";
 const PEDIDO: Record<EstadoPedido, { tono: TonoChip; texto: string }> = {
   REGISTRADO: { tono: "neutro", texto: "Registrado" },
   APROBADO: { tono: "marino", texto: "Aprobado" },
-  DESPACHADO: { tono: "ambar", texto: "Despachado" },
-  ENTREGADO: { tono: "teal", texto: "Entregado" },
+  // En ruta (como el andén de la landing) y, al final, entregado en teal sólido.
+  DESPACHADO: { tono: "teal", texto: "Despachado" },
+  ENTREGADO: { tono: "teal-solido", texto: "Entregado" },
   ANULADO: { tono: "coral", texto: "Anulado" },
 };
 
