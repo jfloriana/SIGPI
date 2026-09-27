@@ -9,6 +9,5 @@ apps/e2e/playwright-report/
 apps/e2e/.auth/
 coverage/
 *.log
-.impeccable/hook.cache.json
-apps/web/.impeccable/review/
+.impeccable/
 apps/e2e/defectos/
