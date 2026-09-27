@@ -132,9 +132,12 @@ Supabase se usa **solo como base de datos**: la autenticación, los permisos y l
    npx prisma db push      # crea las tablas en Supabase
    npm run seed            # carga los datos de demostración
    ```
-   El proyecto usa `prisma db push` (sincronización del esquema) en lugar de migraciones versionadas porque el mismo
-   esquema se aplica a dos motores distintos; para un despliegue real conviene generar migraciones con
-   `npx prisma migrate dev` sobre PostgreSQL y aplicarlas con `npx prisma migrate deploy`.
+    El proyecto usa `prisma db push` (sincronización del esquema) en lugar de migraciones versionadas porque el mismo
+    esquema se aplica a dos motores distintos; para un despliegue real conviene generar migraciones con
+    `npx prisma migrate dev` sobre PostgreSQL y aplicarlas con `npx prisma migrate deploy`.
+    > Atajo: `npm run nube -w apps/api` (con `DATABASE_URL_NUBE` y `DIRECT_URL_NUBE` en el entorno) hace el
+    > `generate` + `db push` + `seed` contra Supabase y restaura el repo a SQLite. Es el mismo comando que usa
+    > el despliegue de la API en Render.
 5. `npm run dev` desde la raíz.
 
 **Límites del plan gratuito (verifique los vigentes en supabase.com/pricing antes de la exposición):** base de datos

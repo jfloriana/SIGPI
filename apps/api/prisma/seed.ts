@@ -197,6 +197,7 @@ async function insertarHistorial(h: Historial): Promise<FilaBitacora[]> {
   const idPedido = new Map(insertados.map((r) => [Number(r.codigo.slice("TMP-SEED-".length)), r.id]));
   await prisma.$transaction(
     [...idPedido].map(([, id]) => prisma.pedido.update({ where: { id }, data: { codigo: codigoPedido(id) } })),
+    { timeout: 60_000 },
   );
   await prisma.detallePedido.createMany({
     data: h.pedidos.flatMap((p) =>
@@ -218,6 +219,7 @@ async function insertarHistorial(h: Historial): Promise<FilaBitacora[]> {
   const idOrden = new Map(ocInsertadas.map((r) => [Number(r.codigo.slice("TMP-SEED-".length)), r.id]));
   await prisma.$transaction(
     [...idOrden].map(([, id]) => prisma.ordenCompra.update({ where: { id }, data: { codigo: codigoOrden(id) } })),
+    { timeout: 60_000 },
   );
   await prisma.detalleOrdenCompra.createMany({
     data: h.ordenes.flatMap((o) =>

@@ -9,6 +9,7 @@
     "build": "tsc --noEmit",
     "setup": "node scripts/crear-env.mjs && prisma generate && prisma db push && tsx prisma/seed.ts",
     "seed": "tsx prisma/seed.ts",
+    "nube": "node scripts/nube.mjs",
     "generate": "prisma generate",
     "test": "vitest run"
   },
