@@ -136,8 +136,9 @@ Supabase se usa **solo como base de datos**: la autenticación, los permisos y l
     esquema se aplica a dos motores distintos; para un despliegue real conviene generar migraciones con
     `npx prisma migrate dev` sobre PostgreSQL y aplicarlas con `npx prisma migrate deploy`.
     > Atajo: `npm run nube -w apps/api` (con `DATABASE_URL_NUBE` y `DIRECT_URL_NUBE` en el entorno) hace el
-    > `generate` + `db push` + `seed` contra Supabase y restaura el repo a SQLite. Es el mismo comando que usa
-    > el despliegue de la API en Render.
+    > `generate` + `db push` + `seed` contra Supabase y restaura el repo a SQLite. En Render el Build Command es
+    > `npm install && NUBE_SOLO_GENERAR=1 npm run nube`: solo genera el cliente Postgres sin tocar la base
+    > (la conexión directa 5432 no es alcanzable desde Render; el DDL/seed se hace desde local).
 5. `npm run dev` desde la raíz.
 
 **Límites del plan gratuito (verifique los vigentes en supabase.com/pricing antes de la exposición):** base de datos
